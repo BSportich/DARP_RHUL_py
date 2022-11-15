@@ -53,6 +53,38 @@ def get_area_indices(area, value, inv=False, obstacle=-1):
         mask &= area != obstacle
         return np.concatenate([np.where(mask)]).T
 
+
+def generate_instance_initial_random(length, height, nb_robots, full_random = False) : 
+
+    if full_random == True : 
+        length = np.random.randint(10,20)
+        height = np.random.randint(10,20)
+        nb_robots = np.random.randint(3,7)
+
+    nb_obstacles =  np.random.randint(3,7)
+    obstacle_list = []
+    robots_start_pos_list = []
+
+    x = np.random.randint(0,length)
+    y = np.random.randint(0, height)
+
+    robots_start_pos_list.append( (x,y) )
+    count = nb_robots - 1 + nb_obstacles
+
+    while (x,y) in (obstacle_list + robots_start_pos_list) or count > 0 : 
+
+            x = np.random.randint(0,length)
+            y = np.random.randint(0, height)
+
+            if count <= nb_obstacles : 
+                obstacle_list.append( (x,y))
+            else :
+                robots_start_pos_list.append( (x,y) )
+
+            count = count -1 
+
+    return length, height, nb_robots, robots_start_pos_list, obstacle_list
+
 class MultiRobotPathPlanner(DARP):
     def __init__(self, nx, ny, notEqualPortions, initial_positions, portions,
                  obs_pos, visualization, MaxIter=80000, CCvariation=0.01,
