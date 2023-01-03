@@ -100,6 +100,17 @@ class DARP:
         self.dcells = dcells
         self.importance = importance
         self.notEqualPortions = notEqualPortions
+
+        #New data structure modification
+        self.drones_energy = 
+        self.pre_covered_cells = 
+        self.cell_coverage_energy_cost = 
+        self.opt_ass = 
+
+        self.RobotLabels[r] = 
+        self.BinaryRobotMainRegion[r] = 
+        self.BinaryRobotSecondaryRegion[r] = 
+        #End new data structure modification
     
 
         print("\nInitial Conditions Defined:")
@@ -224,9 +235,18 @@ class DARP:
                     ConnectedMultiplier = np.ones((self.rows, self.cols))
                     ConnectedRobotRegions[r] = True
                     num_labels, labels_im = cv2.connectedComponents(self.connectivity[r, :, :], connectivity=4)
+
+                    #Changes Ben
+                    BinaryRobot, BinaryNonRobot = constructBinaryImages(labels_im, self.initial_positions[r], self.rows, self.cols)
+                    self.RobotLabels[r] = num_labels, labels_im
+                    self.BinaryRobotMainRegion[r] = BinaryRobot
+                    self.BinaryRobotSecondaryRegion[r] = BinaryNonRobot
+                    #End changes Ben 
+
                     if num_labels > 2:
                         ConnectedRobotRegions[r] = False
-                        BinaryRobot, BinaryNonRobot = constructBinaryImages(labels_im, self.initial_positions[r], self.rows, self.cols)
+                        #BinaryRobot, BinaryNonRobot = constructBinaryImages(labels_im, self.initial_positions[r], self.rows, self.cols)
+
                         ConnectedMultiplier = CalcConnectedMultiplier(self.rows, self.cols,
                                                                       self.NormalizedEuclideanDistanceBinary(True, BinaryRobot),
                                                                       self.NormalizedEuclideanDistanceBinary(False, BinaryNonRobot), self.CCvariation)
@@ -306,6 +326,13 @@ class DARP:
                 return False
         return True
 
+    def IsThisAGoalState_new(self, thresh, connectedRobotRegions) : 
+
+        for r in range(self.droneNo) : 
+            if self.DesireableAssign[r] - self.BinaryRobotMainRegion[r] > thresh :
+                return False
+        return True
+
     def update_connectivity(self):
         self.connectivity = np.zeros((self.droneNo, self.rows, self.cols), dtype=np.uint8)
         for i in range(self.droneNo):
@@ -313,10 +340,16 @@ class DARP:
             self.connectivity[i, mask[0], mask[1]] = 255
 
     # Construct Assignment Matrix
-    def construct_Assignment_Matrix(self):
+    def construct_Assignment_Matrix(self, modif_ben):
         Notiles = self.rows*self.cols
         fair_division = 1/self.droneNo
         effectiveSize = Notiles - self.droneNo - len(self.obstacles_positions)
+
+        #changes ben
+        if modif_ben == True : 
+            effectiveSize = Notiles - self.droneNo - len(self.obstacles_positions) - len(self.pre_covered_cells)
+        #end changes ben
+
         termThr = 0
 
         if effectiveSize % self.droneNo != 0:
@@ -329,6 +362,12 @@ class DARP:
 
         for i in range(self.droneNo):
             DesireableAssign[i] = effectiveSize * self.portions[i]
+
+            #Changes related to energy and new proportions
+            if modif_ben == True : 
+                DesireableAssign[i] = effectiveSize * self.opt_ass[i]
+            #end changes
+
             MinimumImportance[i] = sys.float_info.max
             if (DesireableAssign[i] != int(DesireableAssign[i]) and termThr != 1):
                 termThr = 1
@@ -384,3 +423,23 @@ class DARP:
 
         return distRobot
 
+
+    def ComputeOptimalAssignmentNew(self) : 
+        opt_ass = np.zeros((self.droneNo))
+
+        
+        for r in range(self.droneNo) : 
+
+            if ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - len(self.pre_covered_cells[r]) ) > 0 : 
+
+                opt_ass[r] = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - len(self.pre_covered_cells[r]) ) / ( sum(self.droneEnergy) -  len(self.pre_covered_cells))
+                opt_ass[r] = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - len(self.pre_covered_cells[r]) ) 
+            else : 
+
+                opt_ass[r] = 0
+
+        return opt_ass
+
+
+    def CellsRejectionProcess(self): 
+        return
