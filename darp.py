@@ -85,13 +85,20 @@ def CalcConnectedMultiplier(rows, cols, dist1, dist2, CCvariation):
 
 class DARP:
     def __init__(self, nx, ny, notEqualPortions, given_initial_positions, given_portions, obstacles_positions,
+                #Ben_modif
+                DARP_energy,
+                #Ben_modif_end
                  visualization, MaxIter=80000, CCvariation=0.01,
                  randomLevel=0.0001, dcells=2,
                  importance=False):
 
         self.rows = nx
         self.cols = ny
+
+        #Ben_modif
+        self.DARP_energy = DARP_energy
         self.initial_positions, self.obstacles_positions, self.portions = self.sanity_check(given_initial_positions, given_portions, obstacles_positions, notEqualPortions)
+        #Ben_modif_end
 
         self.visualization = visualization
         self.MaxIter = MaxIter
@@ -101,16 +108,21 @@ class DARP:
         self.importance = importance
         self.notEqualPortions = notEqualPortions
 
+        #Ben_modif
         #New data structure modification
         self.drones_energy = 
         self.pre_covered_cells = 
         self.cell_coverage_energy_cost = 
+        self.full_covered_cells = 
+        self.EffectiveSize = (self.rows*self.cols) - self.droneNo - len(self.obstacles_positions) - len(self.pre_covered_cells) - len(self.full_covered_cells)
         self.opt_ass = 
+
 
         self.RobotLabels[r] = 
         self.BinaryRobotMainRegion[r] = 
         self.BinaryRobotSecondaryRegion[r] = 
         #End new data structure modification
+        #Ben_modif_end
     
 
         print("\nInitial Conditions Defined:")
@@ -138,7 +150,7 @@ class DARP:
         if self.visualization:
             self.assignment_matrix_visualization = darp_area_visualization(self.A, self.droneNo, self.color, self.initial_positions)
 
-    def sanity_check(self, given_initial_positions, given_portions, obs_pos, notEqualPortions):
+    def sanity_check(self, given_initial_positions, given_portions, obs_pos, notEqualPortions, DARP_energy = False):
         initial_positions = []
         for position in given_initial_positions:
             if position < 0 or position >= self.rows * self.cols:
@@ -155,7 +167,16 @@ class DARP:
 
         portions = []
         if notEqualPortions:
-            portions = given_portions
+
+            #Ben_modif
+            if self.DARP_energy == True : 
+                for i in range(self.droneNo) : 
+                    portions.append( self.opt_ass[i] )
+            else : 
+            #Ben_modif_end
+
+                portions = given_portions
+
         else:
             for drone in range(len(initial_positions)):
                 portions.append(1 / len(initial_positions))
@@ -236,12 +257,12 @@ class DARP:
                     ConnectedRobotRegions[r] = True
                     num_labels, labels_im = cv2.connectedComponents(self.connectivity[r, :, :], connectivity=4)
 
-                    #Changes Ben
+                    #Ben_modif
                     BinaryRobot, BinaryNonRobot = constructBinaryImages(labels_im, self.initial_positions[r], self.rows, self.cols)
                     self.RobotLabels[r] = num_labels, labels_im
                     self.BinaryRobotMainRegion[r] = BinaryRobot
                     self.BinaryRobotSecondaryRegion[r] = BinaryNonRobot
-                    #End changes Ben 
+                    #Ben_modif_end
 
                     if num_labels > 2:
                         ConnectedRobotRegions[r] = False
@@ -340,15 +361,15 @@ class DARP:
             self.connectivity[i, mask[0], mask[1]] = 255
 
     # Construct Assignment Matrix
-    def construct_Assignment_Matrix(self, modif_ben):
+    def construct_Assignment_Matrix(self):
         Notiles = self.rows*self.cols
         fair_division = 1/self.droneNo
         effectiveSize = Notiles - self.droneNo - len(self.obstacles_positions)
-
-        #changes ben
-        if modif_ben == True : 
-            effectiveSize = Notiles - self.droneNo - len(self.obstacles_positions) - len(self.pre_covered_cells)
-        #end changes ben
+        #Ben_modif
+        if self.DARP_energy == True : 
+            effectiveSize = self.EffectiveSize
+        #Ben_modif_end
+        
 
         termThr = 0
 
@@ -362,11 +383,6 @@ class DARP:
 
         for i in range(self.droneNo):
             DesireableAssign[i] = effectiveSize * self.portions[i]
-
-            #Changes related to energy and new proportions
-            if modif_ben == True : 
-                DesireableAssign[i] = effectiveSize * self.opt_ass[i]
-            #end changes
 
             MinimumImportance[i] = sys.float_info.max
             if (DesireableAssign[i] != int(DesireableAssign[i]) and termThr != 1):
@@ -423,7 +439,8 @@ class DARP:
 
         return distRobot
 
-
+    #Ben_modif
+    #Consider that some energy must be kept for the remaining path of the pre-covered cells
     def ComputeOptimalAssignmentNew(self) : 
         opt_ass = np.zeros((self.droneNo))
 
@@ -432,8 +449,11 @@ class DARP:
 
             if ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - len(self.pre_covered_cells[r]) ) > 0 : 
 
-                opt_ass[r] = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - len(self.pre_covered_cells[r]) ) / ( sum(self.droneEnergy) -  len(self.pre_covered_cells))
-                opt_ass[r] = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - len(self.pre_covered_cells[r]) ) 
+                #Option 1 : Total sum of portion assigments on all drones equals 1 
+                opt_ass[r] = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - (len(self.pre_covered_cells[r]) *0.5 ) ) / ( (sum(self.droneEnergy) / self.cell_coverage_energy_cost) -  len(self.pre_covered_cells))
+                
+                #Option 2 : Total sum of share of drones can be lower or over 1 
+                opt_ass[r] = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - (len(self.pre_covered_cells[r]) *0.5 ) ) / ( self.EffectiveSize )
             else : 
 
                 opt_ass[r] = 0
