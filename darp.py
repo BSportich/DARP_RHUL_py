@@ -232,6 +232,10 @@ class DARP:
         while self.termThr <= self.dcells and not success and not cancelled:
             downThres = (self.Notiles - self.termThr*(self.droneNo-1))/(self.Notiles*self.droneNo)
             upperThres = (self.Notiles + self.termThr)/(self.Notiles*self.droneNo)
+            #Ben_modif
+
+            #Ben_modif_end
+
 
             success = True
 
@@ -272,7 +276,10 @@ class DARP:
                                                                       self.NormalizedEuclideanDistanceBinary(True, BinaryRobot),
                                                                       self.NormalizedEuclideanDistanceBinary(False, BinaryNonRobot), self.CCvariation)
                     ConnectedMultiplierList[r, :, :] = ConnectedMultiplier
-                    plainErrors[r] = self.ArrayOfElements[r]/(self.DesireableAssign[r]*self.droneNo)
+                    #Ben_modif
+                    #plainErrors[r] = self.ArrayOfElements[r]/(self.DesireableAssign[r]*self.droneNo) #SHOULD BE MODIFIED
+                    plainErrors[r] = self.ArrayOfElements[r]/self.EffectiveSize
+                    #Ben_modif_end
                     if plainErrors[r] < downThres:
                         divFairError[r] = downThres - plainErrors[r]
                     elif plainErrors[r] > upperThres:
@@ -447,13 +454,18 @@ class DARP:
         
         for r in range(self.droneNo) : 
 
-            if ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - len(self.pre_covered_cells[r]) ) > 0 : 
+            if ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - (len(self.pre_covered_cells[r]) *0.5 )  ) > 0 : 
 
-                #Option 1 : Total sum of portion assigments on all drones equals 1 
-                opt_ass[r] = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - (len(self.pre_covered_cells[r]) *0.5 ) ) / ( (sum(self.droneEnergy) / self.cell_coverage_energy_cost) -  len(self.pre_covered_cells))
+                #DARP core algorithm can not converge if sum of aimed values is > 1 : 
+                #Total sum of energy left across all robots amounts to more than the number of cells uncovered :
+                if ( sum(self.drones_energy) / self.cell_coverage_energy_cost - - (len(self.pre_covered_cells) *0.5 )  ) > self.EffectiveSize  : 
+                    #Option 1 : Total sum of portion assigments on all drones equals 1 (Normalized)
+                    opt_ass[r] = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - (len(self.pre_covered_cells[r]) *0.5 ) ) / ( (sum(self.droneEnergy) / self.cell_coverage_energy_cost) -  (len(self.pre_covered_cells)*0.5))
                 
-                #Option 2 : Total sum of share of drones can be lower or over 1 
-                opt_ass[r] = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - (len(self.pre_covered_cells[r]) *0.5 ) ) / ( self.EffectiveSize )
+                ##DARP core algorithm can converge (and potentially faster) if sum of aimed values is < 1 : 
+                else : 
+                    #Option 2 : Total sum of share of drones can be lower or over 1 
+                    opt_ass[r] = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - (len(self.pre_covered_cells[r]) *0.5 ) ) / ( self.EffectiveSize )
             else : 
 
                 opt_ass[r] = 0
@@ -461,5 +473,34 @@ class DARP:
         return opt_ass
 
 
+    def ComputeThresholdsRobots(self) :
+        Thresholds = [] 
+
+        if sum(self.opt_ass) == 1 : 
+            Normalized = True
+
+        for r in range(self.droneNo) : 
+            if Normalized : 
+                LowerThreshold = (self.opt_ass[r] - self.termThr ) / self.EffectiveSize
+                HigherThreshold = (self.opt_ass[r] + self.termThr) / self.EffectiveSize
+
+                if self.opt_ass[r] < self.termThr or (self.opt_ass[r] + self.termThr) > self.EffectiveSize : 
+                    print("ERROR : TERMTHR EXCEEDED EXPECTED VALUES ")
+                    print("ERROR : LOWER OR UPPER THRESHOULD OUT OF BOUNDS FOR ROBOT "+r)
+
+            else : 
+                LowerThreshold = self.opt_ass[r] / self.EffectiveSize
+                if self.opt_threshold == "A" : 
+                    HigherThreshold = (self.opt_ass[r] + (self.EffectiveSize - sum(self.opt_ass)) - self.termThr) / self.EffectiveSize
+                elif self.opt_threshold == "B" :
+                    HigherThreshold = (self.EffectiveSize - self.termThr) / self.EffectiveSize
+            
+            
+            Thresholds.append( (LowerThreshold, HigherThreshold))
+
+
+
     def CellsRejectionProcess(self): 
         return
+
+
