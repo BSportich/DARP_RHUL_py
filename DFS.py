@@ -40,6 +40,11 @@ def BridgeUtil(gridcells, rows, cols, current_cell, visited, parent, low, depth,
 
 def FindBridgeCells(gridcells, rows, cols, current_cell) : 
 
+
+    print(gridcells)
+    print(rows)
+    print(cols)
+    print(current_cell)
     bridge_cells = []
     parent = {}
     parent[current_cell] = None 
@@ -130,15 +135,15 @@ def GenerateInstanceTest() :
     return grid_cells, value_grid
 
 
-def EvaluationQuality():
+def EvaluationQuality(starting_cell):
     grid, values = GenerateInstanceTest()
     
-    if grid[0][0] == 0 or len(getNeighbours(grid, (0,0), 10,10)) == 0:
+    if grid[ starting_cell[0] ][ starting_cell[1] ] == 0 or len(getNeighbours(grid, starting_cell , 10,10)) == 0:
         return False, 0
 
     #print(grid)
 
-    bridges, depth, low = FindBridgeCells(grid,10,10, (0,0))
+    bridges, depth, low = FindBridgeCells(grid,10,10, starting_cell )
     #print(bridges)
     #grid2 = np.copy(grid)
     #for cell in bridges : 
@@ -174,7 +179,7 @@ def EvaluationQuality():
     non_bridges = []
     for i in range(10) : 
         for j in range (10) : 
-            if original_labels_im[i][j] == original_labels_im[0][0] and (not ( (i,j) in bridges )) : 
+            if original_labels_im[i][j] == original_labels_im[ starting_cell[0] ][ starting_cell[1] ] and (not ( (i,j) in bridges )) : 
                 non_bridges.append( (i,j) ) 
 
     for cell in non_bridges : 
@@ -188,6 +193,9 @@ def EvaluationQuality():
 
         if num_labels > original_num_labels : 
             print("MISSED BRIDGE ON THE GRAPH "+str(cell))
+            print(starting_cell)
+            print(original_labels_im)
+            print(labels_im)
             print(bridges)
             print(grid)
 
@@ -202,7 +210,8 @@ def ReviewQuality(n) :
     i = 0 
     sum_tot = 0 
     while i < n : 
-        Test, coverage = EvaluationQuality()
+        starting_cell = ( random.randint(0,9), random.randint(0,9))
+        Test, coverage = EvaluationQuality(starting_cell)
         if Test == True : 
             i = i + 1 
             sum_tot = sum_tot + coverage
