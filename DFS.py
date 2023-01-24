@@ -83,54 +83,108 @@ def FindBridgeCells(gridcells, rows, cols, current_cell) :
 
     return bridge_cells, depth, low
 
-a = np.ones((10,10))
-bridges = FindBridgeCells(a,10,10, (0,0))
-
-a = [[ 1,1,1,1],[1,1,1,1],[1,1,1,1],[1,0,0,1]]
-bridges = FindBridgeCells(a,4,4, (0,0))
 
 
+def findCelltoReject(grid, value_grid, rows, cols, bridges) : 
 
-def RejectionProcess(DFS_tree, max_nb_cells) : 
+    value_copy = np.copy(value_grid)
 
-    Rejected_cells = []
+    for i in range(rows) : 
+        for j in range(cols) : 
+            if value_grid[i][j] >0 : 
+                degree = getNeighbours( grid ,(i,j), rows, cols)
 
-    while( len(Rejected_cells) < max_nb_cells ) : 
+                value_copy[i][j] = value_copy[i][j] + ( len(degree) / 100.0 ) 
+            else :
 
-        leaves = DFS_tree.leaves()
-        min_leaf_id = None
-        min_leaf_value = sys.maxint
-        for leaf in leaves : 
-            if leaf.data < min_leaf_value : 
-                min_leaf_value = leaf.data
-                min_leaf_id = leaf._identifier
+                value_copy[i][j] = 255
+
+    for bridge in bridges : 
+        value_copy[ bridge[0] ][ bridge[1] ] = 255
+
+    min_value = np.min(value_copy)
+    for i in range(rows) : 
+        for j in range(cols) : 
+            if value_copy[i][j] == min_value : 
+                return (i,j)
+            
+    print("NO NON-BRIDGE CELLS FOUND TO BE REJECTED")
+    
+
+    return (-1,-1)
+
+
+def RejectionProcess(binarymap, value_grid, rows, cols, max_nb_cells, starting_cell) : 
+
+    current_cell_count = np.sum(binarymap)
+    grid_copy = np.copy(binarymap)
+    rejected_cells = []
+    rejected_value = 0 
+
+    while current_cell_count > max_nb_cells : 
+
+        bridges, depth, low = FindBridgeCells(grid_copy, rows, cols, starting_cell)
+
+        cell = findCelltoReject(grid_copy, value_grid, rows, cols, bridges)
+
+        grid_copy[ cell[0] ][ cell[1] ] = 0 
+        rejected_cells.append( cell )
+        rejected_value = rejected_value + value_grid[ cell[0] ][ cell[1] ]
+        current_cell_count = current_cell_count - 1 
+
+    return rejected_cells, grid_copy, rejected_value
+
+def EvaluateRejection() : 
+    
+    num_labels = 100
+
+    while num_labels > 2  : 
+        grid, value = GenerateInstanceTest()
+        grid3 = np.copy(grid)
+        mask = np.where(grid3 == 1)
+        grid3[mask[0], mask[1]] = 255
+        image = np.uint8(grid3)
+        num_labels, labels_im = cv2.connectedComponents(image, connectivity=4)
+
+
+    nb_cells = np.sum(grid)
+    starting_cell = ( random.randint(0,9), random.randint(0,9))
+    while grid[ starting_cell[0] ][ starting_cell[1] ] != 1 :
+        starting_cell = ( random.randint(0,9), random.randint(0,9))
+    print(grid)
+    print(starting_cell)
+    print(nb_cells)
+    bridges, depth, low = FindBridgeCells(grid, 10, 10, starting_cell)
+
+    rejected_cells, grid_copy, rejected_value = RejectionProcess(grid, value, 10,10, nb_cells/2, starting_cell)
+
+    for cell in rejected_cells : 
+        print(cell)
+        print(value[ cell[0] ][ cell[1] ])
         
-        Rejected_cells.append(min_leaf_id)
-        removed_node = DFS_tree.remove_node(min_leaf_id)
-        print("NODE "+min_leaf_id+" WAS REMOVED")
+    print(value)
 
-        if removed_node > 1 : 
-            print("ERROR : NODE REMOVED IS NOT A LEAF")
-            print("ERROR : SEVERAL NODES WERE REMOVED")
 
-    return Rejected_cells
-
+#RejectionProcess(grid, value, 10,10, nb_cells/2, starting_cell )
 
 def GenerateInstanceTest() : 
 
     grid_cells = np.ones((10,10))
     value_grid = np.zeros((10,10))
-
+    count_value = 1
     for i in range(10) : 
         for j in range(10) : 
 
-            value_grid[i][j] = random.randint(1,3)
+            value_grid[i][j] = count_value
             grid_cells[i][j] = random.random()
 
             if grid_cells[i][j] < 0.3 :
                 grid_cells[i][j] = 0
+                value_grid[i][j] = 0
             else : 
                 grid_cells[i][j] = 1
+            
+            count_value = count_value +1 
 
     return grid_cells, value_grid
 
