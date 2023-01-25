@@ -100,6 +100,11 @@ class MultiRobotPathPlanner(DARP):
         # Divide areas based on robots initial positions
         self.DARP_success , self.iterations = self.darp_instance.divideRegions()
 
+        #Ben_modif
+        input("Press enter to continue")
+        print("DARP STATUS "+self.DARP_success)
+        #Ben_modif_end
+
         # Check if solution was found
         if not self.DARP_success:
             print("DARP did not manage to find a solution for the given configuration!")

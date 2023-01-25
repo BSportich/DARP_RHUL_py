@@ -6,6 +6,7 @@ import time
 import random
 import os
 from numba import njit
+from DFS import *
 
 np.set_printoptions(threshold=sys.maxsize)
 
@@ -84,11 +85,15 @@ def CalcConnectedMultiplier(rows, cols, dist1, dist2, CCvariation):
 
 
 class DARP:
-    def __init__(self, nx, ny, notEqualPortions, given_initial_positions, given_portions, obstacles_positions,
+    def __init__(self, nx, ny, notEqualPortions, given_initial_positions, given_portions, obstacles_positions, visualization,
                 #Ben_modif
-                DARP_energy,
+                DARP_energy = False, #boolean
+                strategy_no = 3, #int
+                opt_ass_type = 1, #int
+                drones_energy = [],
+                opt_threshold = "A", 
                 #Ben_modif_end
-                 visualization, MaxIter=80000, CCvariation=0.01,
+                 MaxIter=80000, CCvariation=0.01,
                  randomLevel=0.0001, dcells=2,
                  importance=False):
 
@@ -97,6 +102,9 @@ class DARP:
 
         #Ben_modif
         self.DARP_energy = DARP_energy
+        self.strategy_no = strategy_no #Type of strategy 
+        self.opt_ass_type = opt_ass_type # 1 or 2 : normalized or non-normalized
+        self.threshold_type = opt_threshold #A or B : smaller interval or large interval
         self.initial_positions, self.obstacles_positions, self.portions = self.sanity_check(given_initial_positions, given_portions, obstacles_positions, notEqualPortions)
         #Ben_modif_end
 
@@ -110,17 +118,21 @@ class DARP:
 
         #Ben_modif
         #New data structure modification
-        self.drones_energy = 
-        self.pre_covered_cells = 
-        self.cell_coverage_energy_cost = 
-        self.full_covered_cells = 
+        self.drones_energy = drones_energy
+        self.pre_covered_cells = []  #TO CHANGE
+        self.cell_coverage_energy_cost = 1
+        self.full_covered_cells = [] #TO CHANGE
         self.EffectiveSize = (self.rows*self.cols) - self.droneNo - len(self.obstacles_positions) - len(self.pre_covered_cells) - len(self.full_covered_cells)
-        self.opt_ass = 
+        self.opt_ass = self.ComputeOptimalAssignmentNew()
+        self.robots_thresholds = []
 
+        self.RobotLabels = {}
+        self.BinaryRobotMainRegion = {}
+        self.BinaryRobotSecondaryRegion = {} #CHANGE NAME
 
-        self.RobotLabels[r] = 
-        self.BinaryRobotMainRegion[r] = 
-        self.BinaryRobotSecondaryRegion[r] = 
+        self.RejectedCells = {}
+        self.corrected_cell_assignment = {} 
+        self.RejectedValue = {}
         #End new data structure modification
         #Ben_modif_end
     
@@ -233,7 +245,8 @@ class DARP:
             downThres = (self.Notiles - self.termThr*(self.droneNo-1))/(self.Notiles*self.droneNo)
             upperThres = (self.Notiles + self.termThr)/(self.Notiles*self.droneNo)
             #Ben_modif
-
+            if self.DARP_energy == True : 
+                self.ComputeThresholdsRobots()
             #Ben_modif_end
 
 
@@ -279,14 +292,23 @@ class DARP:
                     #Ben_modif
                     #plainErrors[r] = self.ArrayOfElements[r]/(self.DesireableAssign[r]*self.droneNo) #SHOULD BE MODIFIED
                     plainErrors[r] = self.ArrayOfElements[r]/self.EffectiveSize
+                    downThres = self.robots_thresholds[r][0]
+                    upperThres = self.robots_thresholds[r][1]
                     #Ben_modif_end
                     if plainErrors[r] < downThres:
                         divFairError[r] = downThres - plainErrors[r]
                     elif plainErrors[r] > upperThres:
                         divFairError[r] = upperThres - plainErrors[r]
-
-                if self.IsThisAGoalState(self.termThr, ConnectedRobotRegions):
-                    break
+                
+                #Ben_modif
+                if self.DARP_energy == True :
+                    if self.IsThisAGoalState_new(self.termThr) : 
+                        self.CellsRejectionProcess()
+                        break
+                else :
+                #Ben_modif_end
+                    if self.IsThisAGoalState(self.termThr, ConnectedRobotRegions):
+                        break
 
                 TotalNegPerc = 0
                 totalNegPlainErrors = 0
@@ -306,6 +328,7 @@ class DARP:
                         else:
                             correctionMult[r] = 1 - (plainErrors[r]/totalNegPlainErrors)*(TotalNegPerc/2)
 
+                        #if no importance, returns correctionMult
                         criterionMatrix = self.calculateCriterionMatrix(
                                 self.TilesImportance[r],
                                 self.MinimumImportance[r],
@@ -321,8 +344,14 @@ class DARP:
 
                 iteration += 1
                 if self.visualization:
-                    self.assignment_matrix_visualization.placeCells(self.A, iteration_number=iteration)
-                    time.sleep(0.2)
+
+                    #Ben_modif
+                    if self.DARP_energy == True : 
+                        self.assignment_matrix_visualization.placeCells_withRejection(self.A, self.corrected_cell_assignment, iteration_number=iteration)  
+                        time.sleep(1)
+                    else : 
+                        self.assignment_matrix_visualization.placeCells(self.A, iteration_number=iteration)
+                        time.sleep(0.2)
 
             if iteration >= self.MaxIter:
                 self.MaxIter = self.MaxIter/2
@@ -354,7 +383,7 @@ class DARP:
                 return False
         return True
 
-    def IsThisAGoalState_new(self, thresh, connectedRobotRegions) : 
+    def IsThisAGoalState_new(self, thresh) : 
 
         for r in range(self.droneNo) : 
             if self.DesireableAssign[r] - self.BinaryRobotMainRegion[r] > thresh :
@@ -458,14 +487,23 @@ class DARP:
 
                 #DARP core algorithm can not converge if sum of aimed values is > 1 : 
                 #Total sum of energy left across all robots amounts to more than the number of cells uncovered :
-                if ( sum(self.drones_energy) / self.cell_coverage_energy_cost - - (len(self.pre_covered_cells) *0.5 )  ) > self.EffectiveSize  : 
-                    #Option 1 : Total sum of portion assigments on all drones equals 1 (Normalized)
-                    opt_ass[r] = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - (len(self.pre_covered_cells[r]) *0.5 ) ) / ( (sum(self.droneEnergy) / self.cell_coverage_energy_cost) -  (len(self.pre_covered_cells)*0.5))
+                if ( (sum(self.drones_energy) / self.cell_coverage_energy_cost) - (len(self.pre_covered_cells) *0.5 )  ) > self.EffectiveSize  : 
+                    #Total sum of portion assigments on all drones equals 1 (Normalized = Option 1 )
+                    opt_ass[r] = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - (len(self.pre_covered_cells[r]) *0.5 ) ) / ( (sum(self.droneEnergy) / self.cell_coverage_energy_cost) -  ( sum(len(x) for x in self.pre_covered_cells) *0.5))
                 
                 ##DARP core algorithm can converge (and potentially faster) if sum of aimed values is < 1 : 
                 else : 
-                    #Option 2 : Total sum of share of drones can be lower or over 1 
-                    opt_ass[r] = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - (len(self.pre_covered_cells[r]) *0.5 ) ) / ( self.EffectiveSize )
+
+                    #Total sum of share of drones can be lower or over 1 
+                    #Can be normalized (option 1) or non normalized (option 2)
+
+                    #Option 1 : Normalized
+                    if self.opt_ass_type == 1 : 
+                        opt_ass[r] = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - (len(self.pre_covered_cells[r]) *0.5 ) ) / ( (sum(self.droneEnergy) / self.cell_coverage_energy_cost) -  ( sum(len(x) for x in self.pre_covered_cells) *0.5 )) 
+
+                    #Option 2 : non normalized
+                    else : 
+                        opt_ass[r] = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - (len(self.pre_covered_cells[r]) *0.5 ) ) / ( self.EffectiveSize )
             else : 
 
                 opt_ass[r] = 0
@@ -474,7 +512,7 @@ class DARP:
 
 
     def ComputeThresholdsRobots(self) :
-        Thresholds = [] 
+        self.robots_thresholds = [] 
 
         if sum(self.opt_ass) == 1 : 
             Normalized = True
@@ -494,13 +532,21 @@ class DARP:
                     HigherThreshold = (self.opt_ass[r] + (self.EffectiveSize - sum(self.opt_ass)) - self.termThr) / self.EffectiveSize
                 elif self.opt_threshold == "B" :
                     HigherThreshold = (self.EffectiveSize - self.termThr) / self.EffectiveSize
+
+                if self.termThr > 0 : 
+                    print("TERMTHR WAS INCREASED WHILE TARGET INTERVAL WAS REALLY LARGE")
+                    print("LIKELY NO SOLUTION TO BE FOUND")
             
             
-            Thresholds.append( (LowerThreshold, HigherThreshold))
+            self.robots_thresholds .append( (LowerThreshold, HigherThreshold))
 
 
 
     def CellsRejectionProcess(self): 
+
+        for r in range(self.droneNo) : 
+            self.RejectedCells[r], self.corrected_cell_assignment[r], self.RejectedValue[r] = RejectionProcess( self.BinaryRobotMainRegion[r], self.Valuationgrid, self.rows, self.cols, self.drones_energy[r], self.initial_positions[r] )
+
         return
 
 

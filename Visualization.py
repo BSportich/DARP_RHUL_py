@@ -144,6 +144,9 @@ class darp_area_visualization(object):
                       'lineWidth': 2}
         self.color = color
         self.init_robot_pos_colors = [np.clip((r[0] - 20, r[1] + 20, r[2] - 20), 0, 255).tolist() for r in self.color]
+        #ben_modif
+        self.rejected_colors = [np.clip((r[0] - 20, r[1] + 50, r[2] - 20), 0, 255).tolist() for r in self.color]
+        #ben_modif_end
         self.init_robot_pos = init_robot_pos
         pygame.init()
         self._VARS['surf'] = pygame.display.set_mode((dimensions[1], dimensions[0]))
@@ -249,6 +252,54 @@ class darp_area_visualization(object):
         
         pygame.display.set_caption('Assignment Matrix [Iteration: ' + str(iteration_number) + ']')
         pygame.display.update()
+
+    #ben_modif
+    def placeCells_withRejection(self, Assignment_matrix, corrected_assignment, iteration_number=0):
+        celldimX = (self._VARS['gridWH'][0]/self._VARS['gridCellsX'])
+        celldimY = (self._VARS['gridWH'][1]/self._VARS['gridCellsY'])
+
+        for row in range(self.Assignment_matrix.shape[0]):
+            for column in range(self.Assignment_matrix.shape[1]):
+                if (self.Assignment_matrix[row][column] == self.DroneNo):
+                    self.drawSquareCell(
+                        self._VARS['gridOrigin'][0] + (celldimX*column)
+                        + self._VARS['lineWidth']/2,
+                        self._VARS['gridOrigin'][1] + (celldimY*row)
+                        + self._VARS['lineWidth']/2,
+                        celldimX, celldimY, BLACK)
+                    continue
+                for r in range(self.DroneNo):
+                    if self.init_robot_pos[r] == (row, column):
+                        self.drawSquareCell(
+                            self._VARS['gridOrigin'][0] + (celldimX * column)
+                            + self._VARS['lineWidth'] / 2,
+                            self._VARS['gridOrigin'][1] + (celldimY * row)
+                            + self._VARS['lineWidth'] / 2,
+                            celldimX, celldimY, self.init_robot_pos_colors[r])
+                        continue
+                    else:
+                        if self.Assignment_matrix[row][column] == r:
+                            if corrected_assignment[r][row][column] == 0 : 
+                                self.drawSquareCell(
+                                    self._VARS['gridOrigin'][0] + (celldimX*column)
+                                    + self._VARS['lineWidth']/2,
+                                    self._VARS['gridOrigin'][1] + (celldimY*row)
+                                    + self._VARS['lineWidth']/2,
+                                    celldimX, celldimY, self.rejected_colors[r])
+                            else :
+                                self.drawSquareCell(
+                                    self._VARS['gridOrigin'][0] + (celldimX*column)
+                                    + self._VARS['lineWidth']/2,
+                                    self._VARS['gridOrigin'][1] + (celldimY*row)
+                                    + self._VARS['lineWidth']/2,
+                                    celldimX, celldimY, self.color[r])
+       
+        self.drawSquareGrid(self._VARS['gridOrigin'], self._VARS['gridWH'], 
+                            self._VARS['gridCellsX'], self._VARS['gridCellsY'])
+        
+        pygame.display.set_caption('Assignment Matrix [Iteration: ' + str(iteration_number) + ']')
+        pygame.display.update()
+    #ben_modif_end
 
     def drawSquareCell(self, x, y, dimX, dimY, color):
         pygame.draw.rect(
