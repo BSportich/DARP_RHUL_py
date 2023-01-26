@@ -91,7 +91,7 @@ def findCelltoReject(grid, value_grid, rows, cols, bridges) :
 
     for i in range(rows) : 
         for j in range(cols) : 
-            if value_grid[i][j] >0 : 
+            if value_grid[i][j] >0 and grid[i][j] > 0: 
                 degree = getNeighbours( grid ,(i,j), rows, cols)
 
                 value_copy[i][j] = value_copy[i][j] + ( len(degree) / 100.0 ) 
@@ -118,6 +118,7 @@ def RejectionProcess(binarymap, value_grid, rows, cols, max_nb_cells, starting_c
 
     current_cell_count = np.sum(binarymap)
     grid_copy = np.copy(binarymap)
+    value_copy = np.copy(value_grid)
     rejected_cells = []
     rejected_value = 0 
 
@@ -125,9 +126,10 @@ def RejectionProcess(binarymap, value_grid, rows, cols, max_nb_cells, starting_c
 
         bridges, depth, low = FindBridgeCells(grid_copy, rows, cols, starting_cell)
 
-        cell = findCelltoReject(grid_copy, value_grid, rows, cols, bridges)
+        cell = findCelltoReject(grid_copy, value_copy, rows, cols, bridges)
 
         grid_copy[ cell[0] ][ cell[1] ] = 0 
+        value_copy[ cell[0] ][ cell[1] ] = 0
         rejected_cells.append( cell )
         rejected_value = rejected_value + value_grid[ cell[0] ][ cell[1] ]
         current_cell_count = current_cell_count - 1 
@@ -157,12 +159,13 @@ def EvaluateRejection() :
     bridges, depth, low = FindBridgeCells(grid, 10, 10, starting_cell)
 
     rejected_cells, grid_copy, rejected_value = RejectionProcess(grid, value, 10,10, nb_cells/2, starting_cell)
-
+    print(rejected_cells)
+    print(value)
     for cell in rejected_cells : 
         print(cell)
         print(value[ cell[0] ][ cell[1] ])
         
-    print(value)
+
 
 
 #RejectionProcess(grid, value, 10,10, nb_cells/2, starting_cell )

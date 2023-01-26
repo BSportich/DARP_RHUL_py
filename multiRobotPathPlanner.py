@@ -93,6 +93,7 @@ class MultiRobotPathPlanner(DARP):
         start_time = time.time()
         # Initialize DARP
         self.darp_instance = DARP(nx, ny, notEqualPortions, initial_positions, portions, obs_pos, visualization,
+                                    DARP_energy=True, drones_energy=[10,15,10], 
                                   MaxIter=MaxIter, CCvariation=CCvariation,
                                   randomLevel=randomLevel, dcells=dcells,
                                   importance=importance)
@@ -102,7 +103,8 @@ class MultiRobotPathPlanner(DARP):
 
         #Ben_modif
         input("Press enter to continue")
-        print("DARP STATUS "+self.DARP_success)
+        print("DARP STATUS "+str(self.DARP_success))
+        exit()
         #Ben_modif_end
 
         # Check if solution was found
