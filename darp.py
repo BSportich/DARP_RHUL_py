@@ -90,7 +90,7 @@ class DARP:
                 DARP_energy = False, #boolean
                 pre_covered_cells = [],
                 strategy_no = 3, #int
-                opt_ass_type = 1, #int
+                opt_ass_type = 2, #int
                 drones_energy = [],
                 opt_threshold = "A", 
                 valuation_grid = [],
@@ -107,8 +107,6 @@ class DARP:
         self.strategy_no = strategy_no #Type of strategy 
         self.opt_ass_type = opt_ass_type # 1 or 2 : normalized or non-normalized
         self.opt_threshold = opt_threshold #A or B : smaller interval or large interval
-        self.initial_positions, self.obstacles_positions, self.portions = self.sanity_check(given_initial_positions, given_portions, obstacles_positions, notEqualPortions)
-        #Ben_modif_end
 
         self.visualization = visualization
         self.MaxIter = MaxIter
@@ -118,7 +116,11 @@ class DARP:
         self.importance = importance
         self.notEqualPortions = notEqualPortions
 
+        self.initial_positions, self.obstacles_positions, self.portions = self.sanity_check(given_initial_positions, given_portions, obstacles_positions, notEqualPortions)
         self.droneNo = len(self.initial_positions)
+        #Ben_modif_end
+
+
 
         #Ben_modif
         #New data structure modification
@@ -198,16 +200,24 @@ class DARP:
                 sys.exit(2)
             obstacles_positions.append((obstacle // self.cols, obstacle % self.cols))
 
+
+        for position in initial_positions:
+            for obstacle in obstacles_positions:
+                if position[0] == obstacle[0] and position[1] == obstacle[1]:
+                    print("Initial positions should not be on obstacles")
+                    sys.exit(5)
+
         portions = []
         if notEqualPortions:
 
             #Ben_modif
             if self.DARP_energy == True : 
-                for i in range(self.droneNo) : 
-                    portions.append( self.opt_ass[i] )
+                portions = None
+                return initial_positions, obstacles_positions, portions
+                
             else : 
             #Ben_modif_end
-
+                exit(1)
                 portions = given_portions
 
         else:
@@ -223,11 +233,7 @@ class DARP:
             print("Sum of portions should be equal to 1.")
             sys.exit(4)
 
-        for position in initial_positions:
-            for obstacle in obstacles_positions:
-                if position[0] == obstacle[0] and position[1] == obstacle[1]:
-                    print("Initial positions should not be on obstacles")
-                    sys.exit(5)
+     
 
         return initial_positions, obstacles_positions, portions
           
@@ -257,12 +263,12 @@ class DARP:
         return GridEnv
 
     def divideRegions(self):
-        success = False
+        self.success = False
         cancelled = False
         criterionMatrix = np.zeros((self.rows, self.cols))
         iteration = 0
 
-        while self.termThr <= self.dcells and not success and not cancelled:
+        while self.termThr <= self.dcells and not self.success and not cancelled:
             downThres = (self.Notiles - self.termThr*(self.droneNo-1))/(self.Notiles*self.droneNo)
             upperThres = (self.Notiles + self.termThr)/(self.Notiles*self.droneNo)
             #Ben_modif
@@ -271,7 +277,7 @@ class DARP:
             #Ben_modif_end
 
 
-            success = True
+            self.success = True
 
             # Main optimization loop
 
@@ -338,19 +344,21 @@ class DARP:
                     temp_sum_old =temp_sum
                 temp_sum = 0
                 for r in range(self.droneNo) : 
-                    print( plainErrors[r] > self.robots_thresholds[r][0] and plainErrors[r] < self.robots_thresholds[r][1])
+                    #print( plainErrors[r] > self.robots_thresholds[r][0] and plainErrors[r] < self.robots_thresholds[r][1])
                     temp_sum = np.abs( self.DesireableAssign[r] - self.ArrayOfElements[r])
-                print("DISTANCE TO DESIRABLE ASSIGN "+str(temp_sum))
-                print("CHANGES SINCE LAST ITER "+str(temp_sum-temp_sum_old))
-                print(self.termThr)
+                #print("DISTANCE TO DESIRABLE ASSIGN "+str(temp_sum))
+                #print("CHANGES SINCE LAST ITER "+str(temp_sum-temp_sum_old))
+                #print(self.termThr)
                 if self.DARP_energy == True :
                     if self.IsThisAGoalState_new(self.termThr, ConnectedRobotRegions) : 
-                        print(self.A)
-                        input(iteration)
+                        #print(self.A)
+                        #print(iteration)
+                        #input()
                         #exit(1)
                         self.CellsRejectionProcess()
-                        self.assignment_matrix_visualization.placeCells_withRejection(self.A, self.corrected_cell_assignment, iteration_number=iteration)  
-                        time.sleep(1)
+                        #self.assignment_matrix_visualization.placeCells_withRejection(self.A, self.corrected_cell_assignment, iteration_number=iteration)  
+                        #time.sleep(1)
+                        
                         break
                 else :
                 #Ben_modif_end
@@ -402,11 +410,11 @@ class DARP:
 
             if iteration >= self.MaxIter:
                 self.MaxIter = self.MaxIter/2
-                success = False
+                self.success = False
                 self.termThr += 1
 
         self.getBinaryRobotRegions()
-        return success, iteration
+        return self.success, iteration
 
     def getBinaryRobotRegions(self):
         ind = np.where(self.A < self.droneNo)
@@ -479,10 +487,6 @@ class DARP:
             MinimumImportance[i] = sys.float_info.max
             if (DesireableAssign[i] != int(DesireableAssign[i]) and termThr != 1):
                 termThr = 1
-        
-        #Ben_modif CHANGE CHANGE CHANGE CHANGE CHANGE
-        #termThr = 0 
-        #Ben_modif_end
 
         AllDistances = np.zeros((self.droneNo, self.rows, self.cols))
         TilesImportance = np.zeros((self.droneNo, self.rows, self.cols))
@@ -578,10 +582,10 @@ class DARP:
     def ComputeThresholdsRobots(self) :
         self.robots_thresholds = [] 
 
-        print(self.IsNormalized)
-        print(self.opt_ass)
-        print(self.termThr)
-        print(self.EffectiveSize)
+        #print(self.IsNormalized)
+        #print(self.opt_ass)
+        #print(self.termThr)
+        #print(self.EffectiveSize)
 
         for r in range(self.droneNo) : 
             if self.IsNormalized : 
@@ -592,11 +596,11 @@ class DARP:
                 if (self.opt_ass[r] * self.EffectiveSize ) < self.termThr or ( (self.opt_ass[r] * self.EffectiveSize)+ self.termThr) > self.EffectiveSize : 
                     print("ERROR : TERMTHR EXCEEDED EXPECTED VALUES ")
                     print("ERROR : LOWER OR UPPER THRESHOLD OUT OF BOUNDS FOR ROBOT "+str(r))
-                    print(r)
-                    print(LowerThreshold)
-                    print(HigherThreshold)
-                    print(self.opt_ass)
-                    print(self.EffectiveSize)
+                    #print(r)
+                    #print(LowerThreshold)
+                    #print(HigherThreshold)
+                    #print(self.opt_ass)
+                    #print(self.EffectiveSize)
                     exit()
 
             else : 
@@ -606,20 +610,22 @@ class DARP:
                 elif self.opt_threshold == "B" :
                     HigherThreshold = (self.EffectiveSize - self.termThr) / self.EffectiveSize
 
-                if self.termThr > 0 : #CHANGE CHANGE Problably should be changed to self.isSuccess = False : 
+                #if self.termThr > 0 : #CHANGE CHANGE Problably should be changed to self.isSuccess = False : 
+                if self.success == False : 
                     print("TERMTHR WAS INCREASED WHILE TARGET INTERVAL WAS REALLY LARGE")
                     print("LIKELY NO SOLUTION TO BE FOUND")
             
             print("THRESHOLDS FOR ROBOT "+str(r)+" "+str(LowerThreshold)+" "+str(HigherThreshold))
             self.robots_thresholds .append( (LowerThreshold, HigherThreshold))
-        print(self.robots_thresholds)
+        #print(self.robots_thresholds)
         #exit(1)
 
 
     def CellsRejectionProcess(self): 
 
-        print(self.BinaryRobotMainRegion)
-        print(self.valuation_grid)
+        print("REJECTION")
+        #print(self.BinaryRobotMainRegion)
+        #print(self.valuation_grid)
         
         for r in range(self.droneNo) : 
             self.RejectedCells[r], self.corrected_cell_assignment[r], self.RejectedValue[r] = RejectionProcess( self.BinaryRobotMainRegion[r], self.valuation_grid, self.rows, self.cols, self.drones_energy[r], self.initial_positions[r] ) #CHANGE CHANGE self.drones_energy LEFT ???

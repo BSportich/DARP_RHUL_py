@@ -10,6 +10,8 @@ import argparse
 from turns import turns
 from PIL import Image
 import time
+import cv2
+import random as random
 
 def get_area_map(path, area=0, obs=-1):
     """
@@ -53,37 +55,152 @@ def get_area_indices(area, value, inv=False, obstacle=-1):
         mask &= area != obstacle
         return np.concatenate([np.where(mask)]).T
 
+def PositionTransformer(x,y, rows, cols): 
+    return (x * cols + y )
 
-def generate_instance_initial_random(length, height, nb_robots, full_random = False) : 
+def CollectData(DARP_instance, success, iteration) : 
+    data_table = []
+
+    #Convergence data
+    convergence_status = success
+    print(convergence_status)
+    if convergence_status == False :
+        return [ convergence_status, iteration, -1, DARP_instance.drones_energy , DARP_instance.initial_positions, DARP_instance.obstacles_positions, DARP_instance.DesireableAssign, {}, 0]
+    nb_iterations = iteration
+
+    #Instance info
+    robot_energy = DARP_instance.drones_energy 
+    starting_pos = DARP_instance.initial_positions
+    obstacles = DARP_instance.obstacles_positions
+
+    #Quality of solution
+    desired_assignment = DARP_instance.DesireableAssign
+    final_assignment = DARP_instance.corrected_cell_assignment
+    print(final_assignment)
+    assignment_value = 0
+
+
+            
+
+    #Rejection Values - Is it necessary ?
+
+    #Max instance data
+    print(robot_energy)
+    max_instance_coverage = np.sum(robot_energy)
+    value_grid = DARP_instance.valuation_grid
+    max_instance_value = 0
+    for r in range(DARP_instance.droneNo) : 
+        assignment_value = assignment_value + np.sum(final_assignment[r])
+        for cell in final_assignment[r] : 
+            max_instance_value = max_instance_value + value_grid[ cell[0] ][ cell[1] ]
+
+
+    #value_performance = (max_instance_value - assignment_value) / max_instance_value)  
+    print(max_instance_coverage)
+    print(assignment_value)
+    coverage_performance = (max_instance_coverage - assignment_value) / max_instance_coverage
+    
+    #Save image
+
+    data_table = [ convergence_status, nb_iterations, coverage_performance, robot_energy, starting_pos, obstacles, desired_assignment, final_assignment, assignment_value]
+    print(data_table)
+    return
+
+def Experiments(number) : 
+
+    for i in range(number) : 
+        nx, ny, dronesNo, initial_positions, obs_pos, drones_energy  = generate_instance_initial_random(10,10,3)
+
+        print("Instance is "+str(drones_energy))
+        
+        visualization = False
+        notEqualPortions = True
+        portions = [1,1,1]
+        DARP_energy = True
+
+        #Normalized
+        #darp = DARP(nx, ny, notEqualPortions , initial_positions, portions, obs_pos, visualization,
+        #                            DARP_energy, opt_ass_type=1, drones_energy=drones_energy, 
+        #                            MaxIter=80000, CCvariation=0.01,
+        #                            randomLevel=0.0001, dcells=2, importance=False)
+
+        # Divide areas based on robots initial positions
+        #success, iteration = darp.divideRegions()
+
+        #CollectData(darp, success, iteration)
+        
+        #Not normalized
+        darp = DARP(nx, ny, notEqualPortions , initial_positions, portions, obs_pos, visualization,
+                                    DARP_energy=True, opt_ass_type=2, drones_energy=drones_energy, 
+                                    MaxIter=80000, CCvariation=0.01,
+                                    randomLevel=0.0001, dcells=2, importance=False)
+
+        # Divide areas based on robots initial positions
+        success, iteration = darp.divideRegions()
+        CollectData(darp, success, iteration)
+
+    return
+
+
+def generate_instance_initial_random(rows, cols, nb_robots, full_random = False) : 
 
     if full_random == True : 
-        length = np.random.randint(10,20)
-        height = np.random.randint(10,20)
+        rows = np.random.randint(10,20)
+        cols = np.random.randint(10,20)
         nb_robots = np.random.randint(3,7)
 
     nb_obstacles =  np.random.randint(3,7)
-    obstacle_list = []
-    robots_start_pos_list = []
+    #nb_obstacles = 30
 
-    x = np.random.randint(0,length)
-    y = np.random.randint(0, height)
 
-    robots_start_pos_list.append( (x,y) )
-    count = nb_robots - 1 + nb_obstacles
+    num_labels = 3
 
-    while (x,y) in (obstacle_list + robots_start_pos_list) or count > 0 : 
+    while num_labels > 2 : 
 
-            x = np.random.randint(0,length)
-            y = np.random.randint(0, height)
+        obstacle_list = []
+        robots_start_pos_list = []
+
+        x = np.random.randint(0,rows)
+        y = np.random.randint(0, cols)
+
+        robots_start_pos_list.append( PositionTransformer(x,y,rows,cols) )
+        count = nb_robots - 1 + nb_obstacles
+
+        while count > 0 : 
+
+            temp_grid = np.ones((rows,cols))
+            
+            while PositionTransformer(x,y, rows, cols) in (robots_start_pos_list + obstacle_list) :
+
+                x = np.random.randint(0,rows)
+                y = np.random.randint(0, cols)
 
             if count <= nb_obstacles : 
-                obstacle_list.append( (x,y))
+                obstacle_list.append( PositionTransformer(x,y,rows, cols))
             else :
-                robots_start_pos_list.append( (x,y) )
+                robots_start_pos_list.append( PositionTransformer(x,y, rows, cols) )
 
-            count = count -1 
+            count = count -1
 
-    return length, height, nb_robots, robots_start_pos_list, obstacle_list
+        #print(obstacle_list)
+        for cell in obstacle_list : 
+            temp_grid[ cell//cols ][ cell%cols ] = 0 
+        
+        mask = np.where(temp_grid == 1)
+        temp_grid[mask[0], mask[1]] = 255
+        image = np.uint8(temp_grid)
+        num_labels, labels_im = cv2.connectedComponents(image, connectivity=4)
+
+        #print(num_labels)
+    #print(temp_grid)
+
+    #Generate energy situation
+    robot_energy = []
+    for r in range(nb_robots) : 
+        robot_energy.append(  random.randint(5, np.floor( 100/nb_robots) ) )
+
+
+    return rows, cols, nb_robots, robots_start_pos_list, obstacle_list, robot_energy
 
 class MultiRobotPathPlanner(DARP):
     def __init__(self, nx, ny, notEqualPortions, initial_positions, portions,
@@ -93,7 +210,7 @@ class MultiRobotPathPlanner(DARP):
         start_time = time.time()
         # Initialize DARP
         self.darp_instance = DARP(nx, ny, notEqualPortions, initial_positions, portions, obs_pos, visualization,
-                                    DARP_energy=True, drones_energy=[10,15,10], 
+                                    DARP_energy=True, drones_energy=[1,1,5], 
                                   MaxIter=MaxIter, CCvariation=CCvariation,
                                   randomLevel=randomLevel, dcells=dcells,
                                   importance=importance)
@@ -296,7 +413,16 @@ if __name__ == '__main__':
         default=False,
         action='store_true',
         help='Visualize results (default: False)')
+    argparser.add_argument(
+        '-exp',
+        default=False,
+        action='store_true',
+        help='Launch experiments and evaluation procedure'
+    )
     args = argparser.parse_args()
 
-
-    MultiRobotPathPlanner(args.grid[0], args.grid[1], args.nep, args.in_pos,  args.portions, args.obs_pos, args.vis)
+    if args.exp == True :
+        print("LAUCHING EXPERIMENTS")
+        Experiments(10)
+    else : 
+        MultiRobotPathPlanner(args.grid[0], args.grid[1], args.nep, args.in_pos,  args.portions, args.obs_pos, args.vis)

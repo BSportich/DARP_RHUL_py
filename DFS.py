@@ -41,10 +41,10 @@ def BridgeUtil(gridcells, rows, cols, current_cell, visited, parent, low, depth,
 def FindBridgeCells(gridcells, rows, cols, current_cell) : 
 
 
-    print(gridcells)
-    print(rows)
-    print(cols)
-    print(current_cell)
+    #print(gridcells)
+    #print(rows)
+    #print(cols)
+    #print(current_cell)
     bridge_cells = []
     parent = {}
     parent[current_cell] = None 
