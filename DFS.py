@@ -1,11 +1,11 @@
 import numpy as np
 import sys
 import random as random
-from treelib import Node, Tree
-import networkx as nx
 import cv2
 
-
+#Tarjan algorithm to identify cut-vertex
+#Evaluate recursively all the cells of the grid starting from the current_cell
+#All the bridge cells are put in the bridge_cells structure
 def BridgeUtil(gridcells, rows, cols, current_cell, visited, parent, low, depth, bridge_cells, d) : 
 
     visited[ current_cell[0] ][ current_cell[1] ] = True
@@ -37,7 +37,8 @@ def BridgeUtil(gridcells, rows, cols, current_cell, visited, parent, low, depth,
 
 
 
-
+#Get list of cut-vertex / bridge cells in the grid
+#Special case of the starting cell (removed from the bridge list) ; might to be put back again to avoid rejection of this cell
 def FindBridgeCells(gridcells, rows, cols, current_cell) : 
 
 
@@ -84,8 +85,11 @@ def FindBridgeCells(gridcells, rows, cols, current_cell) :
     return bridge_cells, depth, low
 
 
-
-def findCelltoReject(grid, value_grid, rows, cols, bridges) : 
+#Among the bridge/cut-vertex cells, select cells to reject
+#Cells are selected among two criterias : 1) valuation 2) degrees
+#Cells with lowest valuation and lowest degrees are the ones selected for rejection (in that order)
+#Valuation of cut vertex cells is put to maximum value to prevent them of being selected
+def findCelltoReject(grid, value_grid, rows, cols, bridges, starting_cell) : 
 
     value_copy = np.copy(value_grid)
 
@@ -101,6 +105,7 @@ def findCelltoReject(grid, value_grid, rows, cols, bridges) :
 
     for bridge in bridges : 
         value_copy[ bridge[0] ][ bridge[1] ] = 255
+    value_copy[ starting_cell[0] ][ starting_cell[1] ] = 255
 
     min_value = np.min(value_copy)
     for i in range(rows) : 
@@ -113,7 +118,7 @@ def findCelltoReject(grid, value_grid, rows, cols, bridges) :
 
     return (-1,-1)
 
-
+#Reject enough cells for the cell count to be <= max_nb_cells
 def RejectionProcess(binarymap, value_grid, rows, cols, max_nb_cells, starting_cell) : 
 
     current_cell_count = np.sum(binarymap)
@@ -126,7 +131,11 @@ def RejectionProcess(binarymap, value_grid, rows, cols, max_nb_cells, starting_c
 
         bridges, depth, low = FindBridgeCells(grid_copy, rows, cols, starting_cell)
 
-        cell = findCelltoReject(grid_copy, value_copy, rows, cols, bridges)
+        cell = findCelltoReject(grid_copy, value_copy, rows, cols, bridges, starting_cell)
+
+        if cell == starting_cell : 
+            print("STARTING CELL CAN NOT BE REJECTED")
+            exit(1)
 
         grid_copy[ cell[0] ][ cell[1] ] = 0 
         value_copy[ cell[0] ][ cell[1] ] = 0
@@ -276,7 +285,7 @@ def ReviewQuality(n) :
     print("Correct bridges found "+str( (sum_tot/n) * 100 ) +" %")
 
 
-
+#Get neighbour cells in a grid in 4 directions
 def getNeighbours(BinaryMap, position, rows, cols) : 
     Neighbours = []
     x = position[0]

@@ -12,6 +12,7 @@ from PIL import Image
 import time
 import cv2
 import random as random
+import csv
 
 def get_area_map(path, area=0, obs=-1):
     """
@@ -89,8 +90,10 @@ def CollectData(DARP_instance, success, iteration) :
     max_instance_coverage = np.sum(robot_energy)
     value_grid = DARP_instance.valuation_grid
     max_instance_value = 0
+    reached_assignment = []
     for r in range(DARP_instance.droneNo) : 
         assignment_value = assignment_value + np.sum(final_assignment[r])
+        reached_assignment.append( np.sum(final_assignment[r]))
         for cell in final_assignment[r] : 
             max_instance_value = max_instance_value + value_grid[ cell[0] ][ cell[1] ]
 
@@ -102,42 +105,55 @@ def CollectData(DARP_instance, success, iteration) :
     
     #Save image
 
-    data_table = [ convergence_status, nb_iterations, coverage_performance, robot_energy, starting_pos, obstacles, desired_assignment, final_assignment, assignment_value]
+    data_table = [ convergence_status, nb_iterations, coverage_performance, desired_assignment, reached_assignment, assignment_value, final_assignment]
     print(data_table)
-    return
+    return data_table
 
 def Experiments(number) : 
 
-    for i in range(number) : 
-        nx, ny, dronesNo, initial_positions, obs_pos, drones_energy  = generate_instance_initial_random(10,10,3)
+    with open('experiments_review', mode='w') as csv_file:
+        experiments_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
 
-        print("Instance is "+str(drones_energy))
-        
-        visualization = False
-        notEqualPortions = True
-        portions = [1,1,1]
-        DARP_energy = True
+        for i in range(number) : 
+            nx, ny, dronesNo, initial_positions, obs_pos, drones_energy  = generate_instance_initial_random(10,10,3)
 
-        #Normalized
-        #darp = DARP(nx, ny, notEqualPortions , initial_positions, portions, obs_pos, visualization,
-        #                            DARP_energy, opt_ass_type=1, drones_energy=drones_energy, 
-        #                            MaxIter=80000, CCvariation=0.01,
-        #                            randomLevel=0.0001, dcells=2, importance=False)
+            print("Instance is "+str(drones_energy))
+            experiments_writer.writerow( ("Energy \t", " Initial Positions \t", " Obstacles Positions \t"))
+            experiments_writer.writerow( (drones_energy, initial_positions, obs_pos) )
 
-        # Divide areas based on robots initial positions
-        #success, iteration = darp.divideRegions()
+            visualization = False
+            notEqualPortions = True
+            portions = [1,1,1]
+            DARP_energy = True
 
-        #CollectData(darp, success, iteration)
-        
-        #Not normalized
-        darp = DARP(nx, ny, notEqualPortions , initial_positions, portions, obs_pos, visualization,
-                                    DARP_energy=True, opt_ass_type=2, drones_energy=drones_energy, 
-                                    MaxIter=80000, CCvariation=0.01,
-                                    randomLevel=0.0001, dcells=2, importance=False)
+            #Normalized
+            darp = DARP(nx, ny, notEqualPortions , initial_positions, portions, obs_pos, visualization,
+                                        DARP_energy, opt_ass_type=1, drones_energy=drones_energy, 
+                                        MaxIter=80000, CCvariation=0.01,
+                                        randomLevel=0.0001, dcells=2, importance=False)
 
-        # Divide areas based on robots initial positions
-        success, iteration = darp.divideRegions()
-        CollectData(darp, success, iteration)
+            # Divide areas based on robots initial positions
+            success, iteration = darp.divideRegions()
+
+            data_table  = CollectData(darp, success, iteration)
+            map_final_1 = data_table[-1]
+            experiments_writer.writerow(data_table[:-1])
+            
+            #Not normalized
+            darp = DARP(nx, ny, notEqualPortions , initial_positions, portions, obs_pos, visualization,
+                                        DARP_energy=True, opt_ass_type=2, drones_energy=drones_energy, opt_threshold = "C",
+                                        MaxIter=80000, CCvariation=0.01,
+                                        randomLevel=0.0001, dcells=2, importance=False)
+
+            # Divide areas based on robots initial positions
+            success, iteration = darp.divideRegions()
+            data_table = CollectData(darp, success, iteration)
+            map_final_2 = data_table[-1]
+            experiments_writer.writerow(data_table[:-1])
+
+            experiments_writer.writerow( (map_final_1) )
+            experiments_writer.writerow( (map_final_2) )
+
 
     return
 
