@@ -601,7 +601,7 @@ def BuildMSTs(energy_MRPP) :
             print(f'\nTurns Analysis: {energy_MRPP.best_case}')
             #print(energy_MRPP.best_case.paths)
 
-            return energy_MRPP.best_case.paths, subCellsAssignment_dict[energy_MRPP.min_mode]
+            return energy_MRPP.best_case.paths, subCellsAssignment_dict[energy_MRPP.min_mode], MSTs
 
 
 if __name__ == '__main__':
@@ -657,10 +657,11 @@ if __name__ == '__main__':
 
     if args.exp == True :
         print("LAUCHING EXPERIMENTS")
-        Experiments(100,4)
+        Experiments(100,5)
     elif args.energy!= []:
         MultiRobotPathPlanner(args.grid[0], args.grid[1], args.nep, args.in_pos,  args.portions, args.obs_pos, args.vis, args.energy)
     else : 
         MultiRobotPathPlanner(args.grid[0], args.grid[1], args.nep, args.in_pos,  args.portions, args.obs_pos, args.vis)
 
 #python3 multiRobotPathPlanner.py -obs 33 28 19 64 34 -in_pos 84 25 12 53 -energy 22 22 24 24
+#probleme (len(self(coveredcells))) is never equal to 0 

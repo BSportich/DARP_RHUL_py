@@ -139,8 +139,10 @@ class DARP:
             self.drones_energy = drones_energy
             if len(pre_covered_cells) == 0 :
                 self.pre_covered_cells = [ [] for i in range(self.droneNo) ] 
+                self.pre_covered_cells_number = 0
             else : 
                 self.pre_covered_cells = pre_covered_cells
+                self.pre_covered_cells_number = sum(len(x) for x in self.pre_covered_cells)
             self.cell_coverage_energy_cost = 1
             self.full_covered_cells = [] #TO CHANGE
             self.EffectiveSize = (self.rows*self.cols) - self.droneNo - len(self.obstacles_positions) - sum(len(x) for x in self.pre_covered_cells) - len(self.full_covered_cells)
@@ -610,7 +612,7 @@ class DARP:
                 #Total sum of energy left across all robots amounts to more than the number of cells uncovered :
                 #Forced normalization
 
-                if ( (sum(self.drones_energy) / self.cell_coverage_energy_cost) - (len(self.pre_covered_cells) *0.5 )  ) > self.EffectiveSize  : 
+                if ( (sum(self.drones_energy) / self.cell_coverage_energy_cost) - ( sum(len(x) for x in self.pre_covered_cells) *0.5)  ) > self.EffectiveSize  : 
                     #Total sum of portion assigments on all drones equals 1 (Normalized = Option 1 )
                     opt_ass[r] = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - (len(self.pre_covered_cells[r]) *0.5 ) ) / ( (sum(self.drones_energy) / self.cell_coverage_energy_cost) -  ( sum(len(x) for x in self.pre_covered_cells) *0.5))
                     self.IsNormalized = True 

@@ -8,6 +8,7 @@ from sklearn.preprocessing import MinMaxScaler
 # CONSTANTS:
 BLACK = (0, 0, 0)
 GREY = (160, 160, 160)
+RED =  (255, 0, 0)
 
 class visualize_paths():
     def __init__(self, AllRealPaths, subCellsAssignment, DroneNo, color):
@@ -39,6 +40,28 @@ class visualize_paths():
                                 self._VARS['gridCellsX'],
                                 self._VARS['gridCellsY'])
             self.placeCells()
+            pygame.display.update()
+
+    def visualize_paths_with_pos(self, mode, start_positions, current_positions, cols):
+        pygame.init()
+        self._VARS['surf'] = pygame.display.set_mode((self.dimensions[1], self.dimensions[0]))
+        pygame.display.set_caption('Mode: ' + str(mode))
+        while True:
+            keep_going = self.checkEvents()
+            if not keep_going:
+                break
+            self._VARS['surf'].fill(GREY)
+            self.drawSquareGrid(self._VARS['gridOrigin'],
+                                self._VARS['gridWH'],
+                                self._VARS['gridCellsX'],
+                                self._VARS['gridCellsY'])
+            self.placeCells()
+            #original_position
+            if len(start_positions) != 0 :
+                self.add_positions(start_positions, cols, BLACK)
+            #current_position
+            if len(current_positions) != 0 :
+                self.add_positions(current_positions, cols, RED, True)
             pygame.display.update()
 
     def placeCells(self):
@@ -127,6 +150,22 @@ class visualize_paths():
                 pygame.quit()
                 return False
         return True
+    
+    def add_positions(self, positions, cols, color, double_grid = False ) : 
+        celldimX = (self._VARS['gridWH'][0]/self._VARS['gridCellsX'])
+        celldimY = (self._VARS['gridWH'][1]/self._VARS['gridCellsY'])
+        #print(positions)
+        for r in range(self.DroneNo) : 
+            point = positions[r]
+            if double_grid == False  : 
+                point = ( (point // cols) * 2 , (point % cols) *2 )
+            
+            #print(point)
+            self.drawSquareCell( self._VARS['gridOrigin'][0] + (celldimX*point[1] + celldimX/2),
+                                  self._VARS['gridOrigin'][1] + (celldimY*point[0]) + celldimY/2, celldimX/5 , celldimY/5 , color )
+
+        return
+
 
 
 class darp_area_visualization(object):

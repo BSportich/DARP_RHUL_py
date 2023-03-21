@@ -4,20 +4,30 @@ from multiRobotPathPlanner import MultiRobotPathPlanner, Energy_MRPP, BuildMSTs,
 from Visualization import visualize_paths
 import numpy as np
 import random as random
+import Edges
 
 class DARP_step : 
-    def __init__(self, step, drones_energy, current_position, obstacle_pos, ) :
+    def __init__(self, step, drones_energy, current_position, obstacle_pos, current_position_precise = []) :
+        #pre resolution
         self.step = step 
         self.drones_energy = drones_energy
         self.current_position = current_position
+        self.current_position_precise = current_position_precise
         self.obstacle_pos = obstacle_pos
 
-        self.MRPP = None
+        #resolution data storage
+        self.MRPP = None   #instance object containing DARP algorithm 
         self.DARP_results = None
         self.DARP_sucess = None 
         self.iterations = -1 
 
+        #result to be used across steps
+        self.subcell_asignment = None
         self.MSTs = None
+        self.future_paths = None
+
+        #Post resolution post execution
+        self.performed_path = None
 
     def solve_step(self, nx, ny, visualization ) : 
 
@@ -54,26 +64,40 @@ class DARP_instance :
         self.DARP_steps.append( initial_step )
 
 
-    def addStep(self, drones_energy, current_position, obstacles_pos, rewrite_obstacle = False ) : 
+    def addStep(self, drones_energy, current_position, current_position_precise, obstacles_pos, rewrite_obstacle = False ) : 
 
         if rewrite_obstacle == True : 
                         new_step = DARP_step( len(self.DARP_steps), drones_energy, current_position, obstacles_pos )
 
         else : 
-            new_step = DARP_step( len(self.DARP_steps), drones_energy, current_position, self.DARP_steps[-1].obstacle_pos + obstacles_pos )
+            new_step = DARP_step( len(self.DARP_steps), drones_energy, current_position, self.DARP_steps[-1].obstacle_pos + obstacles_pos, current_position_precise )
 
         print("New step created : "+str(drones_energy))
         self.DARP_steps.append( new_step)
 
-    def generateNewStep(self) : 
+    def generateNewStep(self, visualization = True) : 
 
         drones_pos = []
+        drones_pos_precise = []
         drones_energy = []
+        performed_paths = []
+        
         for r in range(self.dronesNo) : 
             generation_factor = random.randint(0,10)
             consumption_factor = random.randint(80,120) / 100 
-            new_pos = self.DARP_steps[-1].MST[r][generation_factor][2:]
-            drones_pos.append( new_pos )
+            new_pos = self.DARP_steps[-1].future_paths[r][generation_factor][2:]
+            performed_paths.append( self.DARP_steps[-1].future_paths[r][:generation_factor+1] )
+
+            #Transform coordinates
+            x, y = new_pos
+            drones_pos_precise.append( (x,y) )
+            #print("NEW POS "+str(new_pos))
+            x , y = transformCoordinates(x,y)
+            #print("NEW POS "+str( (x,y) ))
+            new_pos_one = x * self.cols + y
+            #print("NEW POS "+str(new_pos_one))
+
+            drones_pos.append( new_pos_one )
             r_energy = self.DARP_steps[-1].drones_energy[r] - ( generation_factor * consumption_factor ) 
             if r_energy < 0 : 
                 r_energy = 0
@@ -81,7 +105,23 @@ class DARP_instance :
 
         #blabla
         print(drones_pos)
-        self.addStep( drones_energy, drones_pos, [])
+        print(drones_energy)
+
+        if visualization == True :
+            image = visualize_paths(self.DARP_steps[-1].future_paths , self.DARP_steps[-1].subcell_assignment, self.dronesNo , self.DARP_steps[-1].DARP_results.color)
+            
+            print("START POSITIONS " +str(self.start_positions))
+            print("CURRENT POSITIONS "+str(drones_pos_precise))
+            print(performed_paths)
+            #input()
+            image.visualize_paths_with_pos("Combined Modes", self.start_positions, drones_pos_precise, self.cols )
+
+        #performed path added to the PREVIOUS step
+        self.DARP_steps[-1].performed_paths = performed_paths
+
+        self.addStep( drones_energy, drones_pos, drones_pos_precise, [])
+
+        return performed_paths
 
 
 
@@ -93,77 +133,148 @@ class DARP_instance :
 
         return darp_results
 
-    def solveMSTs(self) : 
-
-        filtered_old_MSTs = []
-        new_MSTs = []
-
-        #Extracting remaining path from the MST of the last step
-        old_MSTs = self.DARP_steps[-2]
-        for r in range(self.dronesNo) : 
-            for i in range(old_MSTs[r]) : 
-                if old_MSTs[r][i][0] == self.DARP_steps[-1].current_positions[r][0] and old_MSTs[r][i][1] == self.DARP_steps[-1].current_positions[r][1] :
-                    filtered_old_MSTs.append( old_MSTs[r][i:] ) 
-
-        
-        #Computing new MSTs
-
-        #Remove pre covered cells of assigned cells
-        cells_allocation = self.DARP_steps[-1].DARP_results.corrected_cell_assignment
-        old_cells_allocation = self.DARP_steps[-2].DARP_results.corrected_cell_assignment
-
-
-
-
-        #Inserting new MSTs
     
     def solveMSTs_new(self) :
         last_step = self.DARP_steps[-1]
 
-        best_case_paths, subcell_assignment = BuildMSTs( last_step.MRPP )
+        best_case_paths, subcell_assignment, MSTs = BuildMSTs( last_step.MRPP )
 
-        return best_case_paths, subcell_assignment
+        return best_case_paths, subcell_assignment, MSTs
 
     def finalize_step(self, visualization = True) : 
         DARP_result = self.divide_regions_last_step()
-        MST_paths, subcell_assignment = self.solveMSTs_new()
+        future_paths, subcell_assignment, MSTs = self.solveMSTs_new()
 
 
         #if not step 0, insert pre-covered cells part of the path
         if self.DARP_steps[-1].step !=0 : 
 
-            previousMST_paths = self.DARP_steps[-2].MSTs
-            mergedMST_paths = mergeMSTs(MST_paths, previousMST_paths, self.dronesNo)
-            self.DARP_steps[-1].MST = mergedMST_paths
+            previous_predicted_paths = self.DARP_steps[-2].future_paths
+            merged_future_paths = merge_paths(future_paths, previous_predicted_paths, self.dronesNo)
+            self.DARP_steps[-1].future_paths = merged_future_paths
         
         else :
 
-            self.DARP_steps[-1].MST = MST_paths
+            self.DARP_steps[-1].future_paths = future_paths
 
+        self.DARP_steps[-1].subcell_assignment = subcell_assignment
+        self.DARP_steps[-1].MSTs = MSTs
 
         #visualize
         if visualization == True :
-                image = visualize_paths(self.DARP_steps[-1].MST , subcell_assignment,
+                image = visualize_paths(self.DARP_steps[-1].future_paths , subcell_assignment,
                                         self.dronesNo , DARP_result.color)
-                image.visualize_paths("Combined Modes")
+                
+                image.visualize_paths_with_pos("Combined Modes", self.start_positions, self.DARP_steps[-1].current_position_precise, self.cols )
 
         #print results 
 
 
-
-def mergeMSTs( MST_paths, previousMST_paths, number_robots) : 
-    full_MST = []
+def merge_paths( current_MST_paths, previousMST_paths, number_robots) : 
+    full_path = []
     for r in range(number_robots) : 
 
-        bridge_cell = MST_paths[r][-1][1]
+        bridge_cell = current_MST_paths[r][-1][1]
         for i in range(len(previousMST_paths[r])) : 
 
             if previousMST_paths[r][i][1] == bridge_cell :
 
-                full_MST.append( ( MST_paths[r] + previousMST_paths[r][i+1:]) )
+                full_path.append( ( current_MST_paths[r] + previousMST_paths[r][i+1:]) )
                 break
     
-    return full_MST
+    return full_path
+
+def transformCoordinates(x,y) : 
+     new_x = int( x/ 2)
+     new_y = int (y / 2 )
+     return new_x, new_y
+
+
+def sortCellsfromPaths(performed_path) : 
+    cells_dict = {}
+    cells_dict_precise = {}
+    non_covered_cells = []
+    pre_covered_cells = []
+    full_covered_cells = []
+
+    for cell in performed_path : 
+        cell_a = cell[:2] 
+        cell_b = cell[2:]
+        print(cell_a)
+        print(cell_b)
+        cell_a = transformCoordinates( cell_a[0], cell_a[1])
+        cell_b = transformCoordinates( cell_b[0], cell_b[1] ) 
+
+        if cell_a in cells_dict : 
+            cells_dict[cell_a] = cells_dict[cell_a] +1
+        else : 
+            cells_dict[cell_a] = 1 
+
+        if not cell_b in cells_dict : 
+            cells_dict[cell_b] = 0 
+    
+    for cell in cells_dict :
+        
+        if cells_dict[cell] > 3 : 
+            full_covered_cells.append(cell)
+        else : 
+            pre_covered_cells.append(cell)
+
+    print(cells_dict)
+    return pre_covered_cells, full_covered_cells
+
+def sortCellsfromPaths_robots(performed_paths) : 
+    pre_covered_cells = []
+    full_covered_cells = []
+
+    print(len(performed_paths))
+    for r in range(len(performed_paths)) : 
+        pre_covered_cells_r, full_covered_cells_r = sortCellsfromPaths(performed_paths[r])
+        pre_covered_cells.append(pre_covered_cells_r)
+        full_covered_cells.append(full_covered_cells_r)
+
+    return pre_covered_cells, full_covered_cells
+
+
+def extractfromMST( original_MST, pre_covered_cells, full_covered_cells ) : 
+
+    reduced_MST = []
+    correct = True
+
+    for edge in original_MST :
+        print("EDGE IS "+str(edge))
+        for cell in pre_covered_cells : 
+            print("CELL IS "+str(cell))
+            if (edge.src == cell[0] or edge.src == cell[1]) and (edge.dst == cell[0] or edge.dst == cell[1]) and (edge.src != edge.dst) : 
+
+                reduced_MST.append( edge )
+
+        for cell in full_covered_cells : 
+
+            if (edge.src == cell[0] or edge.src == cell[1]) and (edge.dst == cell[0] or edge.dst == cell[1]) : 
+
+                print("BIG ERROR "+str(cell))
+                correct = False
+
+    
+    if correct :
+        return reduced_MST
+    else :
+        exit(1)
+
+
+def printMST(MST) : 
+    for edge in MST : 
+        print(str(edge))
+    
+    return
+
+
+
+     
+
+     
+            
 
 
 
@@ -177,8 +288,20 @@ if __name__ == '__main__':
     DARP_instance_obj.createInitialStep()
     DARP_instance_obj.finalize_step()
     input()
-    DARP_instance_obj.generateNewStep()
-    DARP_instance_obj.finalize_step()
+    performed_paths = DARP_instance_obj.generateNewStep()
+
+    print(performed_paths)
+    pre_covered_cells, full_covered_cells = sortCellsfromPaths_robots( performed_paths )
+    print( str(pre_covered_cells)+" "+str( full_covered_cells ))
+    for r in range((DARP_instance_obj.dronesNo)) : 
+        reducedMST = extractfromMST( DARP_instance_obj.DARP_steps[-2].MSTs[r], pre_covered_cells[r], full_covered_cells[r])
+        print("REDUCED MST")
+        printMST(reducedMST)
+        print("ORIGINAL MST")
+        printMST(DARP_instance_obj.DARP_steps[-2].MSTs[r])
+
+    
+    #DARP_instance_obj.finalize_step()
 
                 
 
