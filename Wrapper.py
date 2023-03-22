@@ -236,31 +236,37 @@ def sortCellsfromPaths_robots(performed_paths) :
     return pre_covered_cells, full_covered_cells
 
 
-def extractfromMST( original_MST, pre_covered_cells, full_covered_cells ) : 
+
+def extractfromMST( original_MST, pre_covered_cells, full_covered_cells, cols) : 
 
     reduced_MST = []
     correct = True
+    print(pre_covered_cells)
+    for edge in original_MST : 
+            print("EDGE IS "+str(edge))
+            src = (edge.src // cols, edge.src % cols)
+            dst = (edge.dst // cols, edge.dst % cols)
+            if src in pre_covered_cells or dst in pre_covered_cells : 
 
-    for edge in original_MST :
-        print("EDGE IS "+str(edge))
-        for cell in pre_covered_cells : 
-            print("CELL IS "+str(cell))
-            if (edge.src == cell[0] or edge.src == cell[1]) and (edge.dst == cell[0] or edge.dst == cell[1]) and (edge.src != edge.dst) : 
+                reduced_MST.append( edge)
 
-                reduced_MST.append( edge )
+    return reduced_MST
 
-        for cell in full_covered_cells : 
 
-            if (edge.src == cell[0] or edge.src == cell[1]) and (edge.dst == cell[0] or edge.dst == cell[1]) : 
+def extractfromMST_robots( DARP_instance_obj, pre_covered_cells) : 
+    reducedMSTs = []
+    for r in range((DARP_instance_obj.dronesNo)) : 
+        reducedMST = extractfromMST( DARP_instance_obj.DARP_steps[-2].MSTs[r], pre_covered_cells[r], full_covered_cells[r], DARP_instance_obj.cols)
+        print("REDUCED MST")
+        printMST(reducedMST)
+        print("ORIGINAL MST")
+        printMST(DARP_instance_obj.DARP_steps[-2].MSTs[r])
+        reducedMSTs.append( reducedMST )
 
-                print("BIG ERROR "+str(cell))
-                correct = False
+    return reducedMSTs
 
-    
-    if correct :
-        return reduced_MST
-    else :
-        exit(1)
+
+
 
 
 def printMST(MST) : 
@@ -293,12 +299,7 @@ if __name__ == '__main__':
     print(performed_paths)
     pre_covered_cells, full_covered_cells = sortCellsfromPaths_robots( performed_paths )
     print( str(pre_covered_cells)+" "+str( full_covered_cells ))
-    for r in range((DARP_instance_obj.dronesNo)) : 
-        reducedMST = extractfromMST( DARP_instance_obj.DARP_steps[-2].MSTs[r], pre_covered_cells[r], full_covered_cells[r])
-        print("REDUCED MST")
-        printMST(reducedMST)
-        print("ORIGINAL MST")
-        printMST(DARP_instance_obj.DARP_steps[-2].MSTs[r])
+    reducedMSTs = extractfromMST_robots( DARP_instance_obj, pre_covered_cells)
 
     
     #DARP_instance_obj.finalize_step()
