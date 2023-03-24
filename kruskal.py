@@ -65,3 +65,13 @@ class Kruskal(object):
         g1 = Graph(self.nodes, self.allEdges)
         g1.KruskalMST()
         self.mst = g1.mst
+
+    def performPartialKruskal(self, oldMSTs) : 
+        g1 = Graph(self.nodes, self.allEdges)
+        g1.partial_Kruskal_MST(oldMSTs)
+        self.mst = g1.mst
+
+
+
+    
+    

@@ -283,13 +283,13 @@ def createValuationGrid(rows, cols, obstacle_list):
 
 class Energy_MRPP(DARP):
     def __init__(self, nx, ny, notEqualPortions, initial_positions, portions,
-                 obs_pos, drones_energy, visualization, MaxIter=80000, CCvariation=0.01,
+                 obs_pos, drones_energy, visualization, pre_covered_cells = [], MaxIter=80000, CCvariation=0.01,
                  randomLevel=0.0001, dcells=2, importance=False):
 
         self.start_time = time.time()
         # Initialize DARP
         self.darp_instance = DARP(nx, ny, notEqualPortions, initial_positions, portions, obs_pos, visualization,
-                                    DARP_energy=True, drones_energy = drones_energy, 
+                                    DARP_energy=True, pre_covered_cells = pre_covered_cells, drones_energy = drones_energy, 
                                   MaxIter=MaxIter, CCvariation=CCvariation,
                                   randomLevel=randomLevel, dcells=dcells,
                                   importance=importance)
@@ -465,21 +465,24 @@ def CalcRealBinaryReg(BinaryRobotRegion, rows, cols):
 
     return RealBinaryRobotRegion
 
-def calculateMSTs(BinaryRobotRegions, droneNo, rows, cols, mode):
+def calculateMSTs(BinaryRobotRegions, droneNo, rows, cols, mode, old_MSTs = []):
     MSTs = []
     for r in range(droneNo):
         k = Kruskal(rows, cols)
         k.initializeGraph(BinaryRobotRegions[r, :, :], True, mode)
-        k.performKruskal()
+        if old_MSTs != [] : 
+            k.performPartialKruskal(old_MSTs[r])
+        else : 
+            k.performKruskal()
         MSTs.append(k.mst)
     return MSTs
 
-def BuildMSTs(energy_MRPP) : 
+def BuildMSTs(energy_MRPP, old_MSTs = []) : 
             energy_MRPP.mode_to_drone_turns = []
             AllRealPaths_dict = {}
             subCellsAssignment_dict = {}
             for mode in range(4):
-                MSTs = calculateMSTs(energy_MRPP.darp_instance.BinaryRobotRegions, energy_MRPP.darp_instance.droneNo, energy_MRPP.darp_instance.rows, energy_MRPP.darp_instance.cols, mode)
+                MSTs = calculateMSTs(energy_MRPP.darp_instance.BinaryRobotRegions, energy_MRPP.darp_instance.droneNo, energy_MRPP.darp_instance.rows, energy_MRPP.darp_instance.cols, mode, old_MSTs)
                 AllRealPaths = []
                 for r in range(energy_MRPP.darp_instance.droneNo):
                     ct = CalculateTrajectories(energy_MRPP.darp_instance.rows, energy_MRPP.darp_instance.cols, MSTs[r])

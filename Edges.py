@@ -5,7 +5,7 @@ class Edge(object):
         self.weight = weight
 
     def __eq__(self, other):
-        return (self.src == other.src and self.dst == other.dst and self.weight == other. weight)
+        return (self.src == other.src and self.dst == other.dst and self.weight == other.weight)
 
     def __hash__(self):
         return hash((self.src, self.dst, self.weight))
@@ -79,9 +79,11 @@ class Graph:
 
         #Setting up edges from the previous MST for the pre-covered cells
         for i in range(len(old_mst_precovered)) :
-            edge = old_mst_precovered[ (len(old_mst_precovered)) - i ]
-
-            if not (edge in self.edgelist) : 
+            edge = old_mst_precovered[ (len(old_mst_precovered)) - i -1 ]
+            print("INSIDE")
+            print(self.edgelist)
+            print(IsEdgeinList(edge, self.edgelist))
+            if not (IsEdgeinList(edge, self.edgelist)) : 
                 print("ULTIMATE ERROR "+str(edge))
                 print(self.edgelist)
                 exit(1)
@@ -122,6 +124,14 @@ class Graph:
             cost += edge.weight
 
 
+def IsEdgeinList(edge, edge_list) :
 
+    for edge_test in edge_list : 
+        print("EDGE TEST" +str(edge_test))
+        print(edge)
+        if edge.src == edge_test.src and edge.dst == edge_test.dst : 
+            return True
+        
+    return False
 
 

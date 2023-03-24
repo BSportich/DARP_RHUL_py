@@ -44,6 +44,15 @@ def assign(droneNo, rows, cols, GridEnv, MetricMatrix, A):
 
             elif GridEnv[i, j] == -2:
                 A[i, j] = droneNo
+            #Ben_modif
+            elif GridEnv[i,j] <= -100 : 
+                temp_value =   - ( GridEnv[i,j] / 100 ) - 1 
+                print("TEMP VALUE "+str(temp_value))
+                A[i,j] = temp_value
+                ArrayOfElements[ int(temp_value) ] += 1
+                print("pre covered treatement")
+            #Ben_modif_end
+            #print(A)
     return A, ArrayOfElements, full_elements
 
 @njit(fastmath=True)
@@ -141,13 +150,23 @@ class DARP:
                 self.pre_covered_cells = [ [] for i in range(self.droneNo) ] 
                 self.pre_covered_cells_number = 0
             else : 
-                self.pre_covered_cells = pre_covered_cells
+                self.pre_covered_cells = []
+                for r in range(self.droneNo) : 
+                    temp_pre_covered_cells_r = []
+
+                    for cell in pre_covered_cells[r] : 
+                        temp_pre_covered_cells_r.append( (cell // self.cols, cell % self.cols) ) 
+
+                    self.pre_covered_cells.append( temp_pre_covered_cells_r )
+
                 self.pre_covered_cells_number = sum(len(x) for x in self.pre_covered_cells)
+
             self.cell_coverage_energy_cost = 1
             self.full_covered_cells = [] #TO CHANGE
             self.EffectiveSize = (self.rows*self.cols) - self.droneNo - len(self.obstacles_positions) - sum(len(x) for x in self.pre_covered_cells) - len(self.full_covered_cells)
             self.IsNormalized = None  #If normalization is forced for the assignment 
             self.opt_ass = self.ComputeOptimalAssignmentNew()
+            print("Optimal assignment "+str(self.opt_ass))
 
             self.robots_thresholds = []   #Target interval for each robot
 
@@ -179,6 +198,7 @@ class DARP:
         #Ben_modif
         if DARP_energy == True : 
             print("Portions (energy-based) for each Robot:", self.opt_ass, "\n")
+            print("Pre-covered cells for each robot "+str(self.pre_covered_cells))
         else : 
         #Ben_modif_end
             print("Portions for each Robot:", self.portions, "\n")
@@ -193,6 +213,8 @@ class DARP:
         self.MetricMatrix, self.termThr, self.Notiles, self.DesireableAssign, self.TilesImportance, self.MinimumImportance, self.MaximumImportance= self.construct_Assignment_Matrix()
         self.ArrayOfElements = np.zeros(self.droneNo)
         self.color = []
+
+        input()
 
         for r in range(self.droneNo):
             np.random.seed(r)
@@ -238,6 +260,7 @@ class DARP:
                 portions = given_portions
 
         else:
+            print("PORTIONS ACTIVATED : EQUALS")
             for drone in range(len(initial_positions)):
                 portions.append(1 / len(initial_positions))
 
@@ -271,6 +294,19 @@ class DARP:
         if num_labels > 2:
             print("The environment grid MUST not have unreachable and/or closed shape regions")
             sys.exit(6)
+
+        #ben_modif
+        if self.pre_covered_cells_number > 0 : 
+            for r in range(self.droneNo) : 
+                for cell in self.pre_covered_cells[r] : 
+                    print(cell)
+                    print( -(r+1) * 100)
+                    GridEnv[ cell[0] ][ cell[1] ] = -(r+1) * 100
+
+            print("PRE COVERED CELLS "+str(GridEnv))
+
+        
+        #ben_modif_end
         
         # initial robot tiles will have their array.index as value
         for idx, robot in enumerate(self.initial_positions):
@@ -363,7 +399,7 @@ class DARP:
                         downThres = self.robots_thresholds[r][0]
                         upperThres = self.robots_thresholds[r][1]
                         #The error also
-                        plainErrors[r] = self.ArrayOfElements[r]/self.EffectiveSize
+                        plainErrors[r] = (self.ArrayOfElements[r] - len( self.pre_covered_cells[r]  )  ) /self.EffectiveSize
                     else :  
                     #Ben_modif_end
                         plainErrors[r] = self.ArrayOfElements[r]/(self.DesireableAssign[r]*self.droneNo) 
@@ -486,7 +522,16 @@ class DARP:
     def IsThisAGoalState(self, thresh, connectedRobotRegions):
         #print("IS THIS A GOAL STATE")
         for r in range(self.droneNo):
-            if np.absolute(self.DesireableAssign[r] - self.ArrayOfElements[r]) > thresh or not connectedRobotRegions[r]:
+            #Ben_modif
+            #print("NN "+str(len(self.pre_covered_cells[r])) ) 
+            #print(connectedRobotRegions)
+            #print( np.absolute(self.DesireableAssign[r] - self.ArrayOfElements[r] ) )
+            #print( np.absolute(self.DesireableAssign[r] - self.ArrayOfElements[r] - len(self.pre_covered_cells[r])) )
+            #print(self.DesireableAssign)
+            #print(self.ArrayOfElements)
+            #print(thresh)
+            if np.absolute(self.DesireableAssign[r] - self.ArrayOfElements[r] - len(self.pre_covered_cells[r])) > thresh or not connectedRobotRegions[r]:
+            #Ben_modif_end
                 return False
         return True
 
@@ -498,7 +543,12 @@ class DARP:
             
             for r in range(self.droneNo) : 
 
-                if np.floor(self.robots_thresholds[r][0]*self.EffectiveSize) - np.sum(self.BinaryRobotMainRegion[r]) > 0 :
+                pre_covered_cells_count = 0 
+                for cell in self.pre_covered_cells[r] : 
+                    if self.BinaryRobotMainRegion[r][ cell[0] ][ cell[1] ] == 1 :
+                        pre_covered_cells_count = pre_covered_cells_count +1 
+                print("HERE" + str(pre_covered_cells_count))
+                if np.floor(self.robots_thresholds[r][0]*self.EffectiveSize) - np.sum(self.BinaryRobotMainRegion[r]) - pre_covered_cells_count  > 0 :
                     return False
 
         for r in range(self.droneNo) : 
@@ -682,7 +732,7 @@ class DARP:
         for r in range(self.droneNo) : 
 
             self.BinaryRobotMainRegion[r][ self.initial_positions[r][0] ][ self.initial_positions[r][1] ] = 1
-            self.RejectedCells[r], self.corrected_cell_assignment[r], self.RejectedValue[r] = RejectionProcess( self.BinaryRobotMainRegion[r], self.valuation_grid, self.rows, self.cols, self.drones_energy[r], self.initial_positions[r] ) #CHANGE CHANGE self.drones_energy LEFT ???
+            self.RejectedCells[r], self.corrected_cell_assignment[r], self.RejectedValue[r] = RejectionProcess( self.BinaryRobotMainRegion[r], self.valuation_grid, self.rows, self.cols, self.drones_energy[r], self.initial_positions[r], self.pre_covered_cells[r] ) #CHANGE CHANGE self.drones_energy LEFT ???
             self.hasRejectionHappened = True
             print("Rejected cells for robot "+str(r)+" "+str(len(self.RejectedCells[r])) ) 
         

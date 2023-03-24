@@ -85,7 +85,7 @@ def FindBridgeCells(gridcells, rows, cols, current_cell) :
     return bridge_cells, depth, low
 
 
-#Among the bridge/cut-vertex cells, select cells to reject
+#Among the non bridge/cut-vertex cells, select cells to reject
 #Cells are selected among two criterias : 1) valuation 2) degrees
 #Cells with lowest valuation and lowest degrees are the ones selected for rejection (in that order)
 #Valuation of cut vertex cells is put to maximum value to prevent them of being selected
@@ -119,7 +119,7 @@ def findCelltoReject(grid, value_grid, rows, cols, bridges, starting_cell) :
     return (-1,-1)
 
 #Reject enough cells for the cell count to be <= max_nb_cells
-def RejectionProcess(binarymap, value_grid, rows, cols, max_nb_cells, starting_cell) : 
+def RejectionProcess(binarymap, value_grid, rows, cols, max_nb_cells, starting_cell, precovered_cells) : 
 
     current_cell_count = np.sum(binarymap)
     grid_copy = np.copy(binarymap)
@@ -131,7 +131,7 @@ def RejectionProcess(binarymap, value_grid, rows, cols, max_nb_cells, starting_c
 
         bridges, depth, low = FindBridgeCells(grid_copy, rows, cols, starting_cell)
 
-        cell = findCelltoReject(grid_copy, value_copy, rows, cols, bridges, starting_cell)
+        cell = findCelltoReject(grid_copy, value_copy, rows, cols, (bridges + precovered_cells) , starting_cell)
 
         if cell == starting_cell : 
             print("STARTING CELL CAN NOT BE REJECTED")

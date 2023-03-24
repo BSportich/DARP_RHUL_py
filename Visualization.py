@@ -9,6 +9,7 @@ from sklearn.preprocessing import MinMaxScaler
 BLACK = (0, 0, 0)
 GREY = (160, 160, 160)
 RED =  (255, 0, 0)
+WHITE = (255,255,255)
 
 class visualize_paths():
     def __init__(self, AllRealPaths, subCellsAssignment, DroneNo, color):
@@ -42,7 +43,7 @@ class visualize_paths():
             self.placeCells()
             pygame.display.update()
 
-    def visualize_paths_with_pos(self, mode, start_positions, current_positions, cols):
+    def visualize_paths_with_pos(self, mode, start_positions, current_positions, cols, performed_paths = []):
         pygame.init()
         self._VARS['surf'] = pygame.display.set_mode((self.dimensions[1], self.dimensions[0]))
         pygame.display.set_caption('Mode: ' + str(mode))
@@ -55,7 +56,11 @@ class visualize_paths():
                                 self._VARS['gridWH'],
                                 self._VARS['gridCellsX'],
                                 self._VARS['gridCellsY'])
-            self.placeCells()
+            
+            if performed_paths != [] : 
+                self.placeCells(performed_paths)
+            else : 
+                self.placeCells()
             #original_position
             if len(start_positions) != 0 :
                 self.add_positions(start_positions, cols, BLACK)
@@ -64,16 +69,35 @@ class visualize_paths():
                 self.add_positions(current_positions, cols, RED, True)
             pygame.display.update()
 
-    def placeCells(self):
+    def placeCells(self, performed_paths = []):
         cellBorder = 0
         celldimX = (self._VARS['gridWH'][0]/self._VARS['gridCellsX'])
         celldimY = (self._VARS['gridWH'][1]/self._VARS['gridCellsY'])
         
+        if performed_paths != [] : 
+            print(" PERFORMED PATHS "+str(performed_paths))
+            print(' REAL PATHS '+str(self.AllRealPaths))
+
         for r in range(self.DroneNo):
             for point in self.AllRealPaths[r]:
+                
+                #Ben_modif
+                if len(performed_paths) == 0 :
+                    color_change = self.color[r]
+                else :
+                    
+                    if point in performed_paths[r] : 
+                        color_change = WHITE
+                    else : 
+                        color_change = self.color[r]
+ 
+                
+
+                #Ben_modif_end
+                
                 color = pygame.Color(255, 0, 0)
                 pygame.draw.line(self._VARS['surf'],
-                                 self.color[r],
+                                 color_change,
                                  (self._VARS['gridOrigin'][0] + (celldimX*point[1] + celldimX/2),
                                   self._VARS['gridOrigin'][1] + (celldimY*point[0]) + celldimY/2),
                                  (self._VARS['gridOrigin'][0] + (celldimX*point[3]) + celldimX/2,
