@@ -1,3 +1,4 @@
+
 class Edge(object):
     def __init__(self, _from, to, weight):
         self.src = _from
@@ -65,9 +66,20 @@ class Graph:
 
 #ben_modif
     #do not take delete into account
-    def partial_Kruskal_MST(self, old_mst_precovered) : 
+    def partial_Kruskal_MST(self, old_mst_precovered, initial_position, current_position, full_covered_cells, rejected_cells) : 
+        
+        #print("PARTIAL KRUSKAL")
+        #print(initial_position)
+        #print(current_position)
+
+        old_mst_outside_edges = old_mst_precovered[1]
+        old_mst_inside_edges = old_mst_precovered[0]
+
+        
 
         self.edgelist.sort(key=lambda Edge: Edge.weight)
+
+        node_pool = []
 
         self.parent = [None] * self.num_nodes
         self.rank = [None] * self.num_nodes
@@ -76,35 +88,16 @@ class Graph:
             self.parent[n] = n  # Every node is the parent of itself at the beginning
             self.rank[n] = 0   # Rank of every node is 0 at the beginning
 
-
+        old_mst_edges = old_mst_precovered[0] + old_mst_precovered[1]
+        #print(old_mst_edges)
         #Setting up edges from the previous MST for the pre-covered cells
-        for i in range(len(old_mst_precovered)) :
-            edge = old_mst_precovered[ (len(old_mst_precovered)) - i -1 ]
-            print("INSIDE")
-            print(self.edgelist)
-            print(IsEdgeinList(edge, self.edgelist))
-            if not (IsEdgeinList(edge, self.edgelist)) : 
-                print("ULTIMATE ERROR "+str(edge))
-                print(self.edgelist)
-                exit(1)
+        for i in range(len(old_mst_edges)) :
+            edge = old_mst_edges[ (len(old_mst_edges)) - i -1 ]
+            #print("INSIDE")
+            #print(self.edgelist)
+            #print(IsEdgeinList(edge, self.edgelist))
 
-            root1 = self.FindParent(edge.src)
-            root2 = self.FindParent(edge.dst)
-
-            # Parents of the source and destination nodes are not in the same subset
-            # Add the edge to the spanning tree
-            if root1 != root2:
-                self.mst.append(edge)
-                if self.rank[root1] < self.rank[root2]:
-                    self.parent[root1] = root2
-                    self.rank[root2] += 1
-                else:
-                    self.parent[root2] = root1
-                    self.rank[root1] += 1
-
-        #Building the rest of the MST
-        for edge in self.edgelist:
-            if (not (edge in self.mst)) : 
+            if IsEdgeinList(edge, self.edgelist) : 
                 root1 = self.FindParent(edge.src)
                 root2 = self.FindParent(edge.dst)
 
@@ -112,12 +105,53 @@ class Graph:
                 # Add the edge to the spanning tree
                 if root1 != root2:
                     self.mst.append(edge)
+
+                    if edge.src != initial_position and edge.src != current_position and edge in old_mst_inside_edges:
+                        node_pool.append(edge.src)
+                    if edge.dst != initial_position and edge.dst != current_position and edge in old_mst_inside_edges:
+                        node_pool.append(edge.dst)
+
                     if self.rank[root1] < self.rank[root2]:
                         self.parent[root1] = root2
                         self.rank[root2] += 1
                     else:
                         self.parent[root2] = root1
                         self.rank[root1] += 1
+
+            elif not (isEdgeinFullCoveredCells(edge, full_covered_cells + rejected_cells )): 
+                
+                print("ULTIMATE ERROR "+str(edge))
+                printMST(self.edgelist)
+                print("old mst")
+                printMST(old_mst_edges)
+                #exit(1)
+        
+        
+        #print("NODE POOL")
+        #printMST(old_mst_precovered)
+        #print(node_pool)
+        #printMST(self.mst)
+        #print(initial_position)
+        #print(current_position)
+        #input()
+        #Building the rest of the MST
+        for edge in self.edgelist:
+            if (not (edge in self.mst)) : 
+
+                root1 = self.FindParent(edge.src)
+                root2 = self.FindParent(edge.dst)
+
+                    # Parents of the source and destination nodes are not in the same subset
+                    # Add the edge to the spanning tree
+                if (not (edge.src in node_pool)) and (not(edge.dst in node_pool)) : 
+                    if root1 != root2:
+                        self.mst.append(edge)
+                        if self.rank[root1] < self.rank[root2]:
+                            self.parent[root1] = root2
+                            self.rank[root2] += 1
+                        else:
+                            self.parent[root2] = root1
+                            self.rank[root1] += 1
 
         cost = 0
         for edge in self.mst:
@@ -127,11 +161,26 @@ class Graph:
 def IsEdgeinList(edge, edge_list) :
 
     for edge_test in edge_list : 
-        print("EDGE TEST" +str(edge_test))
-        print(edge)
+        #print("ICI EDGE TEST" +str(edge_test))
+        #print(edge)
         if edge.src == edge_test.src and edge.dst == edge_test.dst : 
             return True
         
     return False
 
 
+def isEdgeinFullCoveredCells(edge, full_covered_cells) : 
+    print(" here +", full_covered_cells)
+    for fcc in full_covered_cells : 
+        fcc_encoded = 10 * fcc[0] * fcc[1]
+        if edge.src == fcc_encoded or edge.dst == fcc_encoded : 
+            return True
+
+    return False
+
+
+def printMST(MST) : 
+    for edge in MST : 
+        print(str(edge))
+    
+    return

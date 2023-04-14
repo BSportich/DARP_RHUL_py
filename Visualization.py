@@ -74,9 +74,9 @@ class visualize_paths():
         celldimX = (self._VARS['gridWH'][0]/self._VARS['gridCellsX'])
         celldimY = (self._VARS['gridWH'][1]/self._VARS['gridCellsY'])
         
-        if performed_paths != [] : 
-            print(" PERFORMED PATHS "+str(performed_paths))
-            print(' REAL PATHS '+str(self.AllRealPaths))
+        #if performed_paths != [] : 
+            #print(" PERFORMED PATHS "+str(performed_paths))
+            #print(' REAL PATHS '+str(self.AllRealPaths))
 
         for r in range(self.DroneNo):
             for point in self.AllRealPaths[r]:

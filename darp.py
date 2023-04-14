@@ -196,6 +196,7 @@ class DARP:
         print("Number of Robots:", len(self.initial_positions))
         print("Initial Robots' positions", self.initial_positions)
         #Ben_modif
+        print("Obstacles position ", self.obstacles_positions)
         if DARP_energy == True : 
             print("Portions (energy-based) for each Robot:", self.opt_ass, "\n")
             print("Pre-covered cells for each robot "+str(self.pre_covered_cells))
@@ -735,6 +736,19 @@ class DARP:
             self.RejectedCells[r], self.corrected_cell_assignment[r], self.RejectedValue[r] = RejectionProcess( self.BinaryRobotMainRegion[r], self.valuation_grid, self.rows, self.cols, self.drones_energy[r], self.initial_positions[r], self.pre_covered_cells[r] ) #CHANGE CHANGE self.drones_energy LEFT ???
             self.hasRejectionHappened = True
             print("Rejected cells for robot "+str(r)+" "+str(len(self.RejectedCells[r])) ) 
+            print("Rejected cells :"+str(self.RejectedCells[r]))
+            print("Precovered cells :"+str(self.pre_covered_cells[r]))
+
+        #verification
+        for r in range(self.droneNo) :
+            for cell in self.pre_covered_cells[r] :
+                    
+                #print(self.corrected_cell_assignment)
+                if self.corrected_cell_assignment[r][ cell[0] ][ cell[1] ] != 1 : 
+                    print(" FATAL ERROR") 
+                    print(self.corrected_cell_assignment)
+                    print(cell)
+                    print(r)
         
         
         return

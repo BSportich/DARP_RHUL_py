@@ -9,6 +9,7 @@ import sys
 import argparse
 from turns import turns
 from PIL import Image
+from Edges import printMST, Edge
 import time
 import cv2
 import random as random
@@ -338,6 +339,8 @@ class MultiRobotPathPlanner(DARP):
                     ct.CalculatePathsSequence(4 * self.darp_instance.initial_positions[r][0] * self.darp_instance.cols + 2 * self.darp_instance.initial_positions[r][1])
                     AllRealPaths.append(ct.PathSequence)
 
+  
+
                 self.TypesOfLines = np.zeros((self.darp_instance.rows*2, self.darp_instance.cols*2, 2))
                 for r in range(self.darp_instance.droneNo):
                     flag = False
@@ -465,31 +468,89 @@ def CalcRealBinaryReg(BinaryRobotRegion, rows, cols):
 
     return RealBinaryRobotRegion
 
-def calculateMSTs(BinaryRobotRegions, droneNo, rows, cols, mode, old_MSTs = []):
+def calculateMSTs(BinaryRobotRegions, droneNo, rows, cols, mode, old_MSTs = [], initial_positions = [], current_positions = [], full_covered_cells = None, rejected_cells = None):
     MSTs = []
     for r in range(droneNo):
+        print("Building MST for robot ", r)
         k = Kruskal(rows, cols)
         k.initializeGraph(BinaryRobotRegions[r, :, :], True, mode)
         if old_MSTs != [] : 
-            k.performPartialKruskal(old_MSTs[r])
+            current_position = current_positions[r][0] * cols + current_positions[r][1]
+            k.performPartialKruskal(old_MSTs[r], initial_positions[r], current_position, full_covered_cells=full_covered_cells[r], rejected_cells=rejected_cells[r])
         else : 
             k.performKruskal()
         MSTs.append(k.mst)
     return MSTs
 
-def BuildMSTs(energy_MRPP, old_MSTs = []) : 
+def BuildMSTs(energy_MRPP, initial_positions, old_MSTs = [], precise_positions = [], mode = [], r_offsets = [], full_covered_cells = None, accumulated_paths = []) : 
             energy_MRPP.mode_to_drone_turns = []
             AllRealPaths_dict = {}
             subCellsAssignment_dict = {}
-            for mode in range(4):
-                MSTs = calculateMSTs(energy_MRPP.darp_instance.BinaryRobotRegions, energy_MRPP.darp_instance.droneNo, energy_MRPP.darp_instance.rows, energy_MRPP.darp_instance.cols, mode, old_MSTs)
+            
+
+            #Very important !!!!!!!!!!!!!!! 
+            nb_mode = 4 #normally
+            nb_mode = 1 
+            for mode in range(nb_mode):
+                MSTs = calculateMSTs(energy_MRPP.darp_instance.BinaryRobotRegions, energy_MRPP.darp_instance.droneNo, energy_MRPP.darp_instance.rows, energy_MRPP.darp_instance.cols, mode, old_MSTs, initial_positions, energy_MRPP.darp_instance.initial_positions, full_covered_cells=full_covered_cells, rejected_cells=energy_MRPP.darp_instance.RejectedCells )
                 AllRealPaths = []
                 for r in range(energy_MRPP.darp_instance.droneNo):
                     ct = CalculateTrajectories(energy_MRPP.darp_instance.rows, energy_MRPP.darp_instance.cols, MSTs[r])
                     ct.initializeGraph(CalcRealBinaryReg(energy_MRPP.darp_instance.BinaryRobotRegions[r], energy_MRPP.darp_instance.rows, energy_MRPP.darp_instance.cols), True)
                     ct.RemoveTheAppropriateEdges()
-                    ct.CalculatePathsSequence(4 * energy_MRPP.darp_instance.initial_positions[r][0] * energy_MRPP.darp_instance.cols + 2 * energy_MRPP.darp_instance.initial_positions[r][1])
+
+                    #MAJOR CORRECTION FOR INTER STEP PATH CONNEXION
+                    if old_MSTs == []  :
+                        print("start position of path is "+str(4 * energy_MRPP.darp_instance.initial_positions[r][0] * energy_MRPP.darp_instance.cols + 2 * energy_MRPP.darp_instance.initial_positions[r][1]))
+
+                        ct.CalculatePathsSequence(4 * energy_MRPP.darp_instance.initial_positions[r][0] * energy_MRPP.darp_instance.cols + 2 * energy_MRPP.darp_instance.initial_positions[r][1])
+                    else : 
+                        #print(ct.allEdges)
+                        #print("EDGE PRINT")
+                        test_edges = [ 
+                            Edge(237,257,1), 
+                            Edge(257,277,1), 
+                            Edge(277,297,1), 
+                            Edge(297,317,1), 
+                            Edge(317,337,1), 
+                            Edge(337,357,1), 
+                            Edge(357,377,1), 
+
+                            Edge(238,258,1), 
+                            Edge(258,278,1), 
+                            Edge(278,298,1), 
+                            Edge(298,318,1), 
+                            Edge(318,338,1), 
+                            Edge(338,358,1), 
+                            Edge(358,378,1), 
+
+                            Edge(377,378,1),
+
+                            Edge(237,238,1),
+                            Edge(257,258,1),
+                            Edge(277,278,1),
+                            Edge(297,298,1),
+                            Edge(317,318,1),
+                            Edge(337,338,1),
+                            Edge(357,358,1)
+
+                        ]
+                        #for edge in test_edges : 
+                        #    print(str(edge)+" in set is "+str(edge in ct.allEdges))
+                        ct.updateVisitedNodes( accumulated_paths[r])
+                        print("start position of path is "+str(2 * precise_positions[r][0] * energy_MRPP.darp_instance.cols + 0 + precise_positions[r][1]))
+                        print("Offset is "+str(r_offsets[r] ))
+                        
+                        ct.CalculatePathsSequence(2 * precise_positions[r][0] * energy_MRPP.darp_instance.cols + 0 + precise_positions[r][1], r_offsets[r] )
+                    
+                    
                     AllRealPaths.append(ct.PathSequence)
+
+                    printMST(MSTs[r])
+                    
+                    print(  )
+                    print(ct.PathSequence)
+                    
 
                 energy_MRPP.TypesOfLines = np.zeros((energy_MRPP.darp_instance.rows*2, energy_MRPP.darp_instance.cols*2, 2))
                 for r in range(energy_MRPP.darp_instance.droneNo):
@@ -560,7 +621,7 @@ def BuildMSTs(energy_MRPP, old_MSTs = []) :
             # Uncomment if you want to visualize all available modes
             
             # if energy_MRPP.darp_instance.visualization:
-            #     for mode in range(4):
+            #     for mode in range(nb_mode):
             #         image = visualize_paths(AllRealPaths_dict[mode], subCellsAssignment_dict[mode],
             #                                 energy_MRPP.darp_instance.droneNo, energy_MRPP.darp_instance.color)
             #         image.visualize_paths(mode)
@@ -570,10 +631,12 @@ def BuildMSTs(energy_MRPP, old_MSTs = []) :
             combined_modes_paths = []
             combined_modes_turns = []
             
+
+
             for r in range(energy_MRPP.darp_instance.droneNo):
                 min_turns = sys.maxsize
                 temp_path = []
-                for mode in range(4):
+                for mode in range(nb_mode):
                     if energy_MRPP.mode_to_drone_turns[mode].turns[r] < min_turns:
                         temp_path = energy_MRPP.mode_to_drone_turns[mode].paths[r]
                         min_turns = energy_MRPP.mode_to_drone_turns[mode].turns[r]
@@ -604,7 +667,7 @@ def BuildMSTs(energy_MRPP, old_MSTs = []) :
             print(f'\nTurns Analysis: {energy_MRPP.best_case}')
             #print(energy_MRPP.best_case.paths)
 
-            return energy_MRPP.best_case.paths, subCellsAssignment_dict[energy_MRPP.min_mode], MSTs
+            return energy_MRPP.best_case.paths, subCellsAssignment_dict[energy_MRPP.min_mode], MSTs 
 
 
 if __name__ == '__main__':
