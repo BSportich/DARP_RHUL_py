@@ -44,13 +44,13 @@ def assign(droneNo, rows, cols, GridEnv, MetricMatrix, A):
 
             elif GridEnv[i, j] == -2:
                 A[i, j] = droneNo
-            #Ben_modif
+            #Ben_modif pre covered cells
             elif GridEnv[i,j] <= -100 : 
                 temp_value =   - ( GridEnv[i,j] / 100 ) - 1 
-                print("TEMP VALUE "+str(temp_value))
+                #print("TEMP VALUE "+str(temp_value))
                 A[i,j] = temp_value
                 ArrayOfElements[ int(temp_value) ] += 1
-                print("pre covered treatement")
+                #print("pre covered treatement")
             #Ben_modif_end
             #print(A)
     return A, ArrayOfElements, full_elements
@@ -105,7 +105,7 @@ def CalcConnectedMultiplier(rows, cols, dist1, dist2, CCvariation):
 
 
 class DARP:
-    def __init__(self, nx, ny, notEqualPortions, given_initial_positions, given_portions, obstacles_positions, visualization,
+    def __init__(self, nx, ny, notEqualPortions, given_initial_positions, given_portions, obstacles_positions, visualization ,
                 #Ben_modif
                 DARP_energy = False, #boolean
                 pre_covered_cells = [],
@@ -397,10 +397,13 @@ class DARP:
                     #Ben_modif
                     #In the energy case, the thresholds are computed differently
                     if self.DARP_energy == True : 
+                        
                         downThres = self.robots_thresholds[r][0]
                         upperThres = self.robots_thresholds[r][1]
                         #The error also
                         plainErrors[r] = (self.ArrayOfElements[r] - len( self.pre_covered_cells[r]  )  ) /self.EffectiveSize
+                        print("Array of ",self.ArrayOfElements[r])
+                        print((self.ArrayOfElements[r] - len( self.pre_covered_cells[r]  )  ) )
                     else :  
                     #Ben_modif_end
                         plainErrors[r] = self.ArrayOfElements[r]/(self.DesireableAssign[r]*self.droneNo) 
@@ -411,10 +414,14 @@ class DARP:
                         divFairError[r] = upperThres - plainErrors[r]
                 
                 #Ben_modif
-                #print(self.opt_ass)
-                #print(self.DesireableAssign)
-                #print(self.robots_thresholds)
-                #print(plainErrors)
+                print("Convergence")
+                print(self.opt_ass)
+                print(self.DesireableAssign)
+                print(self.robots_thresholds)
+                print(plainErrors)
+                #print(np.sum(self.ArrayOfElements))
+                print(self.pre_covered_cells)
+                print(self.EffectiveSize)
                 #print(self.ArrayOfElements)
                 #temp_sum_old = 0 
                 #if iteration > 0 :
@@ -522,16 +529,18 @@ class DARP:
 
     def IsThisAGoalState(self, thresh, connectedRobotRegions):
         #print("IS THIS A GOAL STATE")
+        print("thresh ", thresh)
         for r in range(self.droneNo):
             #Ben_modif
             #print("NN "+str(len(self.pre_covered_cells[r])) ) 
             #print(connectedRobotRegions)
             #print( np.absolute(self.DesireableAssign[r] - self.ArrayOfElements[r] ) )
-            #print( np.absolute(self.DesireableAssign[r] - self.ArrayOfElements[r] - len(self.pre_covered_cells[r])) )
+            print("Error")
+            print( np.absolute(self.DesireableAssign[r] - self.ArrayOfElements[r] - len(self.pre_covered_cells[r])) )
             #print(self.DesireableAssign)
             #print(self.ArrayOfElements)
             #print(thresh)
-            if np.absolute(self.DesireableAssign[r] - self.ArrayOfElements[r] - len(self.pre_covered_cells[r])) > thresh or not connectedRobotRegions[r]:
+            if np.absolute(self.DesireableAssign[r] - self.ArrayOfElements[r] + len(self.pre_covered_cells[r])) > thresh or not connectedRobotRegions[r]:
             #Ben_modif_end
                 return False
         return True
@@ -667,7 +676,7 @@ class DARP:
                     #Total sum of portion assigments on all drones equals 1 (Normalized = Option 1 )
                     opt_ass[r] = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - (len(self.pre_covered_cells[r]) *0.5 ) ) / ( (sum(self.drones_energy) / self.cell_coverage_energy_cost) -  ( sum(len(x) for x in self.pre_covered_cells) *0.5))
                     self.IsNormalized = True 
-
+                    print("FORCED NORMALIZATION")
                 ##DARP core algorithm can converge (and potentially faster) if sum of aimed values is < 1 : 
                 else : 
 
@@ -686,13 +695,14 @@ class DARP:
             else : 
 
                 opt_ass[r] = 0
-
+        print("Optimal assignment is ", opt_ass)
+        print(np.sum(opt_ass))
         return opt_ass
 
 
     def ComputeThresholdsRobots(self) :
         self.robots_thresholds = [] 
-
+        print("IS NORMALIZED ? ", self.IsNormalized)
         for r in range(self.droneNo) : 
             if self.IsNormalized : 
                 LowerThreshold = ( (self.opt_ass[r]*self.EffectiveSize) - self.termThr ) / self.EffectiveSize

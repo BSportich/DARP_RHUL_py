@@ -119,17 +119,17 @@ class CalculateTrajectories():
         #    print(str(u))
         edge_to_remove = []
         for edge in self.allEdges : 
-            print("1 : Cleaning edge ", edge)
+            #print("1 : Cleaning edge ", edge)
             dst = edge.dst
             src = edge.src
             
             dst_4 = (dst // (2 * self.cols), dst % (2*self.cols) )
             src_4 = (src // (2* self.cols), src % (2*self.cols) ) 
-            print("2 : Cleaning edge "+str(src_4)+" "+str(dst_4))
+            #print("2 : Cleaning edge "+str(src_4)+" "+str(dst_4))
 
             dst_4 = int(np.floor( dst_4[0] * 0.5 ) * self.cols + np.floor(dst_4[1] * 0.5))
             src_4 = int(np.floor( src_4[0] * 0.5 ) *self.cols + np.floor(src_4[1] * 0.5))
-            print("3 : Cleaning edge "+str(src_4)+" "+str(dst_4))
+            #print("3 : Cleaning edge "+str(src_4)+" "+str(dst_4))
             if dst_4 != src_4 : 
                 if (not isEdgein( src_4, dst_4, self.MSTvector))  and (not isEdgein( dst_4, src_4, self.MSTvector) ) : 
 
@@ -141,11 +141,11 @@ class CalculateTrajectories():
         
         for edge in edge_to_remove :
             self.SafeRemoveEdge(edge)
-            print("removed edge ", edge)
+            #print("removed edge ", edge)
 
-        print("final edge read")
-        for u in self.allEdges : 
-            print(str(u))
+        #print("final edge read")
+        #for u in self.allEdges : 
+            #print(str(u))
 
         return
     
@@ -165,10 +165,14 @@ class CalculateTrajectories():
             if cell_b in self.nodes : 
                 self.visited_nodes.append(cell_b)
 
-        print("VISITED NODES")
-        print(self.visited_nodes)
+        #print("VISITED NODES")
+        #print(self.visited_nodes)
 
     def CalculatePathsSequence(self, StartingNode, previous_offset = None):
+
+        if self.nodes[StartingNode] == None : 
+            #self.PathSequence.append( [] )
+            return
 
         currentNode = StartingNode
         RemovedNodes = set()
@@ -181,6 +185,7 @@ class CalculateTrajectories():
         movement.append(1)
 
         found = False
+        
         prevNode = 0
 
         if previous_offset!= None : 
@@ -196,6 +201,9 @@ class CalculateTrajectories():
                     break
         else : 
             for idx in range(4):
+                print(currentNode)
+                print(self.nodes[currentNode])
+                print( self.nodes)
                 if (currentNode + movement[idx]) in list(self.nodes[currentNode]):
                     prevNode = currentNode + movement[idx]
                     found = True
@@ -242,7 +250,7 @@ def isEdgein(src, dst, edge_list) :
         #print("ICI EDGE TEST" +str(edge_test))
         #print(edge)
         if src == edge_test.src and dst == edge_test.dst : 
-            print(True)
+            #print(True)
             return True
-    print(False)
+    #print(False)
     return False

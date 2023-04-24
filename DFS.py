@@ -127,6 +127,14 @@ def RejectionProcess(binarymap, value_grid, rows, cols, max_nb_cells, starting_c
     rejected_cells = []
     rejected_value = 0 
 
+    if max_nb_cells == 0 :
+        #print("here")
+        #exit(1)
+        grid_0_cells = np.zeros(( rows, cols ))
+        return [], grid_0_cells, -99999999
+        
+
+
     while current_cell_count > max_nb_cells : 
 
         bridges, depth, low = FindBridgeCells(grid_copy, rows, cols, starting_cell)

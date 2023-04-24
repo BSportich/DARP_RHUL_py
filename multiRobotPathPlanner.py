@@ -473,7 +473,8 @@ def calculateMSTs(BinaryRobotRegions, droneNo, rows, cols, mode, old_MSTs = [], 
     for r in range(droneNo):
         print("Building MST for robot ", r)
         k = Kruskal(rows, cols)
-        k.initializeGraph(BinaryRobotRegions[r, :, :], True, mode)
+        #k.initializeGraph(BinaryRobotRegions[r, :, :], True, mode)
+        k.initializeGraph(BinaryRobotRegions[r], True, mode)
         if old_MSTs != [] : 
             current_position = current_positions[r][0] * cols + current_positions[r][1]
             k.performPartialKruskal(old_MSTs[r], initial_positions[r], current_position, full_covered_cells=full_covered_cells[r], rejected_cells=rejected_cells[r])
@@ -487,16 +488,19 @@ def BuildMSTs(energy_MRPP, initial_positions, old_MSTs = [], precise_positions =
             AllRealPaths_dict = {}
             subCellsAssignment_dict = {}
             
-
+            #input()
             #Very important !!!!!!!!!!!!!!! 
             nb_mode = 4 #normally
             nb_mode = 1 
             for mode in range(nb_mode):
-                MSTs = calculateMSTs(energy_MRPP.darp_instance.BinaryRobotRegions, energy_MRPP.darp_instance.droneNo, energy_MRPP.darp_instance.rows, energy_MRPP.darp_instance.cols, mode, old_MSTs, initial_positions, energy_MRPP.darp_instance.initial_positions, full_covered_cells=full_covered_cells, rejected_cells=energy_MRPP.darp_instance.RejectedCells )
+                print("Corrected assignment")
+                print(energy_MRPP.darp_instance.corrected_cell_assignment)
+
+                MSTs = calculateMSTs(energy_MRPP.darp_instance.corrected_cell_assignment, energy_MRPP.darp_instance.droneNo, energy_MRPP.darp_instance.rows, energy_MRPP.darp_instance.cols, mode, old_MSTs, initial_positions, energy_MRPP.darp_instance.initial_positions, full_covered_cells=full_covered_cells, rejected_cells=energy_MRPP.darp_instance.RejectedCells )
                 AllRealPaths = []
                 for r in range(energy_MRPP.darp_instance.droneNo):
                     ct = CalculateTrajectories(energy_MRPP.darp_instance.rows, energy_MRPP.darp_instance.cols, MSTs[r])
-                    ct.initializeGraph(CalcRealBinaryReg(energy_MRPP.darp_instance.BinaryRobotRegions[r], energy_MRPP.darp_instance.rows, energy_MRPP.darp_instance.cols), True)
+                    ct.initializeGraph(CalcRealBinaryReg(energy_MRPP.darp_instance.corrected_cell_assignment[r], energy_MRPP.darp_instance.rows, energy_MRPP.darp_instance.cols), True)
                     ct.RemoveTheAppropriateEdges()
 
                     #MAJOR CORRECTION FOR INTER STEP PATH CONNEXION

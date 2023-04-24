@@ -1,6 +1,6 @@
 
 
-from multiRobotPathPlanner import MultiRobotPathPlanner, Energy_MRPP, BuildMSTs, generate_instance_initial_random
+from multiRobotPathPlanner import MultiRobotPathPlanner, Energy_MRPP, BuildMSTs, generate_instance_initial_random, PositionTransformer
 from Visualization import visualize_paths
 import numpy as np
 import random as random
@@ -119,27 +119,69 @@ class DARP_instance :
         robots_offsets = []
         
         for r in range(self.dronesNo) : 
-            generation_factor = random.randint(0,10)
-            consumption_factor = random.randint(80,120) / 100 
-            new_pos = self.DARP_steps[-1].future_paths[r][generation_factor][2:]
-            performed_paths.append( self.DARP_steps[-1].future_paths[r][:generation_factor+1] )
 
-            r_offset = computeOffset( self.DARP_steps[-1].future_paths[r][:generation_factor+1] , self.cols )
-            robots_offsets.append(r_offset)
-            #Transform coordinates
-            x, y = new_pos
-            drones_pos_precise.append( (x,y) )
-            #print("NEW POS "+str(new_pos))
-            x , y = transformCoordinates(x,y)
-            #print("NEW POS "+str( (x,y) ))
-            new_pos_one = x * self.cols + y
-            #print("NEW POS "+str(new_pos_one))
+            if self.DARP_steps[-1].drones_energy[r] > 0 : 
 
-            drones_pos.append( new_pos_one )
-            r_energy = self.DARP_steps[-1].drones_energy[r] - ( generation_factor * consumption_factor ) 
-            if r_energy < 0 : 
+                factor = max( int(self.DARP_steps[-1].drones_energy[r]/ 3 ), 10 )
+
+                generation_factor = random.randint(0,factor)
+                consumption_factor = random.randint(80,120) / 100 
+     
+                r_energy = self.DARP_steps[-1].drones_energy[r] - ( generation_factor * consumption_factor ) 
+
+                while r_energy < 0 :
+                    generation_factor = random.randint(0,factor)
+                    consumption_factor = random.randint(80,120) / 100 
+
+                    r_energy = self.DARP_steps[-1].drones_energy[r] - ( generation_factor * consumption_factor ) 
+
+                    #print("evaluation")
+                    #print( generation_factor * consumption_factor )
+                    #print(self.DARP_steps[-1].drones_energy[r])
+            
+            else : 
+
                 r_energy = 0
+
+            #if r == 2 : 
+            #    r_energy = 0 
+            #    generation_factor = 0 
+            #else : 
+            #    r_energy = r_energy +12
+
             drones_energy.append( r_energy )
+
+            if r_energy != 0 : 
+                new_pos = self.DARP_steps[-1].future_paths[r][generation_factor][2:]
+                performed_paths.append( self.DARP_steps[-1].future_paths[r][:generation_factor+1] )
+
+                r_offset = computeOffset( self.DARP_steps[-1].future_paths[r][:generation_factor+1] , self.cols )
+                robots_offsets.append(r_offset)
+                #Transform coordinates
+                x, y = new_pos
+                drones_pos_precise.append( (x,y) )
+                #print("NEW POS "+str(new_pos))
+                x , y = transformCoordinates(x,y)
+                #print("NEW POS "+str( (x,y) ))
+                new_pos_one = x * self.cols + y
+                #print("NEW POS "+str(new_pos_one))
+
+                drones_pos.append( new_pos_one )
+            
+            else : 
+                drones_pos.append( self.DARP_steps[-1].current_position[r] )
+
+                print(self.DARP_steps[-1].step)
+                performed_paths.append( [] )
+                robots_offsets.append(  None  ) 
+
+                if self.DARP_steps[-1].step == 0 : 
+                    point = ( (self.start_positions[r] // self.cols) * 2 , (self.start_positions[r] % self.cols) *2 )
+                    print( point )
+                    drones_pos_precise.append( point ) 
+                else : 
+                    drones_pos_precise.append( self.DARP_steps[-1].current_position_precise[r]) 
+            
 
         #blabla
         print(drones_pos)
@@ -157,7 +199,11 @@ class DARP_instance :
         #performed path added to the PREVIOUS step
         self.DARP_steps[-1].performed_paths = performed_paths
         self.DARP_steps[-1].robots_offsets = robots_offsets
-        self.addStep( drones_energy, drones_pos, drones_pos_precise, [])
+        obstacles_list = []
+        #obstacles_list = generateObstacles(drones_pos, 5, self.rows, self.cols)
+        print("OBSTACLES LIST IS ", obstacles_list)
+        input()
+        self.addStep( drones_energy, drones_pos, drones_pos_precise, obstacles_list)
 
         return performed_paths
 
@@ -184,7 +230,7 @@ class DARP_instance :
         return best_case_paths, subcell_assignment, MSTs
 
     def finalize_step(self, visualization = True) : 
-        DARP_result = self.divide_regions_last_step()
+        DARP_result = self.divide_regions_last_step( vis = False )   #Change here for DARP visuals in real time
 
 
         #if not step 0, insert pre-covered cells part of the path
@@ -219,7 +265,7 @@ class DARP_instance :
         if visualization == True :
                 image = visualize_paths(self.DARP_steps[-1].future_paths , subcell_assignment,
                                         self.dronesNo , DARP_result.color)
-                
+
                 image.visualize_paths_with_pos("Combined Modes", self.start_positions, self.DARP_steps[-1].current_position_precise, self.cols, self.DARP_steps[-1].performed_paths )
 
         #print results 
@@ -410,6 +456,28 @@ def computeOffset( performed_paths, cols ) :
     print(next_node)
     print(performed_paths)
     exit(1)
+
+
+def generateObstacles( robots_start_pos_list,nb_obstacles, rows, cols) : 
+    
+    obstacle_list = []
+    x = np.random.randint(0,rows)
+    y = np.random.randint(0, cols)
+    count = nb_obstacles
+    test_value = True
+    while (test_value and count > 0)  :
+        print(x,y)
+        print(count)
+        x = np.random.randint(0,rows)
+        y = np.random.randint(0, cols)
+
+        if not ( PositionTransformer(x,y, rows, cols) in (robots_start_pos_list + obstacle_list) ) : 
+            obstacle_list.append( PositionTransformer(x,y,rows, cols))
+            count = count -1
+
+        test_value = PositionTransformer(x,y, rows, cols) in (robots_start_pos_list + obstacle_list)
+
+    return obstacle_list
 
 
 if __name__ == '__main__':
