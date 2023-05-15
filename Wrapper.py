@@ -5,6 +5,9 @@ from Visualization import visualize_paths
 import numpy as np
 import random as random
 import Edges
+import rosplan_interface_copy as ri_copy
+from diagnostic_msgs.msg import KeyValue
+import math
 
 class DARP_step : 
     def __init__(self, step, drones_energy, current_position, obstacle_pos, current_position_precise = []) :
@@ -80,6 +83,11 @@ class DARP_instance :
         self.cost_one_cell = cost_one_cell
         self.dronesNo = len(start_positions)
         self.start_positions = start_positions
+
+
+        #information about the DB
+        self.drones_name = []
+        self.energy_level = []
 
 
         #parameters of the algorithm
@@ -320,14 +328,118 @@ class DARP_instance :
 
             print( str(pre_covered_cells)+" "+str( full_covered_cells ))
 
-    
+
+    def InsertinDB(self, replan = False) : 
+
+        proxy = ri_copy.get_proxy_update()
+
+        for i in range(len(self.drones_name)) :
+                       
+            drone_name = self.drones_name[i]
+
+            #create point
+            point_name = str(self.start_positions[i]) #string concatenating coordinates of the point
+            ri_copy.create_point(proxy, point_name) 
+
+            if replan == True : 
+
+                #get old point
+                #old_point_name = 
+
+                #remove old predicate
+                ri_copy.update_predicate( proxy, "current-location", [{"key": 'ecosub', "value": drone_name},{"key": 'waypoint3D', "value": old_point_name} ],2)  # [drone_name, old_point_name]
+
+                #remove old value (do we need the correct value for that ? )
+                ri_copy.update_function( proxy, "current-energy-level", [{"key": 'ecosub', "value": drone_name}], -1 , 2) 
 
 
+        
+            #make this point the current location of the robots
+            #(current-location ?r1 - robot ?l1 - waypoint3D)
+            #ri_copy.update_predicate( proxy, "current-location", [{"key": 'ecosub', "value": drone_name},{"key": 'waypoint3D', "value": point_name} ], 0) #[drone_name, point_name] 
+            ri_copy.update_predicate( proxy, "current-location", [KeyValue('ecosub', drone_name), KeyValue('waypoint3D', point_name)], 0) #[drone_name, point_name] 
+
+
+            #make energy level of robots
+            #(current-energy-level ?r1 - robot)
+            #add new value
+            ri_copy.update_function( proxy, "current-energy-level", [KeyValue('ecosub', drone_name)], self.energy_level[i] , 0) 
+
+        
+        future_paths = self.DARP_steps[-1].future_paths
+        print("HERE")
+        print(future_paths)
+
+        for i in range((self.dronesNo)) : 
+
+            waypoints_from_path = extract_waypoints(future_paths[i])
+            print("Waypoints are "+str(waypoints_from_path))
+
+            count = 0
+            pre_waypoint = None
+            for waypoint in waypoints_from_path : 
+
+                    waypoint_name = str(waypoint[0])+"_"+str(waypoint[1])
+
+                    ri_copy.create_point(proxy, waypoint_name) #HAS TO BE GPS COORDINATES
+
+                    if pre_waypoint!=None :
+                        print(count)
+                        distance = computeDistanceWaypoints(waypoint, pre_waypoint)
+                        #ri_copy.update_function( proxy, "distance3D", [{"key": 'ecosub', "value": drone_name}], distance , 0) 
+                        ri_copy.update_function( proxy, "distance3D", [KeyValue('ecosub', drone_name)], distance , 0) 
+
+
+
+                    pre_waypoint = waypoint
+                    count = count +1 
+
+
+def computeDistanceWaypoints(waypoint_1, waypoint_2) : 
+    return math.sqrt( (waypoint_1[0] - waypoint_2[0]) **2 + (waypoint_1[1] - waypoint_2[1]) **2   )
+
+def extract_waypoints(path) : 
+    waypoint_list = []
+    current_waypoint = ( path[0][0], path[0][1] )
+    waypoint_list.append( current_waypoint ) 
+    direction = None
+    for double_waypoint in path : 
+
+        next_waypoint = ( double_waypoint[2], double_waypoint[3] )
+
+        if direction == None : 
+            direction = ( current_waypoint[0] - next_waypoint[0], current_waypoint[1] - next_waypoint[1] )
+
+        else : 
+             new_direction = ( current_waypoint[0] - next_waypoint[0], current_waypoint[1] - next_waypoint[1] )
+
+             if direction != new_direction : 
+                 
+                 waypoint_list.append(next_waypoint)
+                 direction = new_direction
+
+        current_waypoint = next_waypoint
+        #print(direction)
+    return waypoint_list
+
+def gridtoGPS(x,y): 
+
+    return
+
+def GPStogrid(x,y) : 
+    return
 
 def transformCoordinates(x,y) : 
      new_x = int( x/ 2)
      new_y = int (y / 2 )
      return new_x, new_y
+
+
+def extract_waypoint(path) : 
+
+    waypoints = [] 
+
+
 
 
 def sortCellsfromPaths(performed_path) : 
@@ -487,8 +599,13 @@ if __name__ == '__main__':
     print ("Energy \t", " Initial Positions \t", " Obstacles Positions \t")
     print( (drones_energy, initial_positions, obs_pos) )
     DARP_instance_obj = DARP_instance(nx, ny, initial_positions, obs_pos, 1 )
+    DARP_instance_obj.energy_level = drones_energy
     DARP_instance_obj.createInitialStep()
     DARP_instance_obj.finalize_step()
+
+    DARP_instance_obj.drones_name = ["ecosub-1", "ecosub-2", "ecosub-3"]
+    DARP_instance_obj.InsertinDB()
+    exit(1)
     while True : 
         input()
         performed_paths = DARP_instance_obj.generateNewStep()
@@ -497,5 +614,8 @@ if __name__ == '__main__':
     
         DARP_instance_obj.finalize_step()
 
+
+
+    
                 
 
