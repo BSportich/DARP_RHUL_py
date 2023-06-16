@@ -171,8 +171,8 @@ class DARP:
             self.robots_thresholds = []   #Target interval for each robot
 
             if len(valuation_grid) == 0 :
-                self.valuation_grid = np.ones((self.cols, self.rows))
-                #print("OBSTACLES ="+self.obstacles_positions)
+                self.valuation_grid = np.ones((self.rows, self.cols))
+                print("OBSTACLES = "+str(self.obstacles_positions))
                 for obstacle in self.obstacles_positions : 
                     self.valuation_grid[ obstacle[0] ][ obstacle[1] ] = 0 
             else : 
