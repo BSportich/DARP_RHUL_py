@@ -91,7 +91,7 @@ class DARP_instance :
         self.drones_name = []
         self.energy_level = []
         self.drones_altitude = []
-        self.ROSplan_obj = ri_copy.Rosplan_object()
+        #self.ROSplan_obj = ri_copy.Rosplan_object()
 
         #parameters of the algorithm
         self.opt_ass_type = opt_ass_type #Normalized or non-normalized
@@ -247,8 +247,9 @@ class DARP_instance :
 
         return best_case_paths, subcell_assignment, MSTs
 
-    def finalize_step(self, visualization = True) : 
-        DARP_result = self.divide_regions_last_step( vis = False )   #Change here for DARP visuals in real time
+    def finalize_step(self, visualization = True, vis_real_time = False) : 
+        print(" Resolution ")
+        DARP_result = self.divide_regions_last_step( vis = vis_real_time )   #Change here for DARP visuals in real time
 
 
         #if not step 0, insert pre-covered cells part of the path
@@ -653,18 +654,21 @@ def generateObstacles( robots_start_pos_list,nb_obstacles, rows, cols) :
 if __name__ == '__main__':
     nx, ny, dronesNo, initial_positions, obs_pos, drones_energy = generate_instance_initial_random(10,10,3)
 
+    nx, ny = 8, 4 
+    initial_positions =  [12, 3, 7]
+    obs_pos =  [23, 0, 4, 29]
     print("Instance is "+str(drones_energy))
     print ("Energy \t", " Initial Positions \t", " Obstacles Positions \t")
     print( (drones_energy, initial_positions, obs_pos) )
     DARP_instance_obj = DARP_instance(nx, ny, initial_positions, obs_pos, 1 )
     DARP_instance_obj.energy_level = drones_energy
     DARP_instance_obj.createInitialStep()
-    DARP_instance_obj.finalize_step()
+    DARP_instance_obj.finalize_step(vis_real_time=True)
 
-    DARP_instance_obj.drones_name = ["ecosub-1", "ecosub-2", "ecosub-3"]
-    DARP_instance_obj.drones_altitude=[10,10,25]
-    DARP_instance_obj.InsertinDB()
-    DARP_instance_obj.callRosPlanExecution()
+    # DARP_instance_obj.drones_name = ["ecosub-1", "ecosub-2", "ecosub-3"]
+    # DARP_instance_obj.drones_altitude=[10,10,25]
+    # DARP_instance_obj.InsertinDB()
+    # DARP_instance_obj.callRosPlanExecution()
     exit(1)
     while True : 
         input()

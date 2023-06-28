@@ -46,6 +46,7 @@ def assign(droneNo, rows, cols, GridEnv, MetricMatrix, A):
                 A[i, j] = droneNo
             #Ben_modif pre covered cells
             elif GridEnv[i,j] <= -100 : 
+                print("HOLAAAAA")
                 temp_value =   - ( GridEnv[i,j] / 100 ) - 1 
                 #print("TEMP VALUE "+str(temp_value))
                 A[i,j] = temp_value
@@ -215,7 +216,7 @@ class DARP:
         self.ArrayOfElements = np.zeros(self.droneNo)
         self.color = []
 
-        input()
+        #input()
 
         for r in range(self.droneNo):
             np.random.seed(r)
@@ -370,6 +371,7 @@ class DARP:
                         #Only enters here in case of problem : 
                         #The main robot region should always be smaller than the total of cells assigned to this robot (all the cells that are not connected to the main components are not here)
                         if np.sum(self.BinaryRobotMainRegion[r]) > self.ArrayOfElements[r] : 
+                            print("MAJOR ERROR")
                             print(np.sum(self.BinaryRobotMainRegion[r]))
                             print(self.ArrayOfElements[r])
                             print(BinaryRobot)
@@ -379,6 +381,7 @@ class DARP:
                             print(self.A)
                             print(self.connectivity[r])
                             input()
+                        
 
                         
                     #Ben_modif_end
@@ -414,15 +417,23 @@ class DARP:
                         divFairError[r] = upperThres - plainErrors[r]
                 
                 #Ben_modif
-                print("Convergence")
-                print(self.opt_ass)
-                print(self.DesireableAssign)
-                print(self.robots_thresholds)
-                print(plainErrors)
-                #print(np.sum(self.ArrayOfElements))
-                print(self.pre_covered_cells)
-                print(self.EffectiveSize)
-                #print(self.ArrayOfElements)
+                #USABLE PRINTS
+                # print("Convergence")
+                # print(self.opt_ass)
+                # print(self.DesireableAssign)
+                # print(self.robots_thresholds)
+                # print(plainErrors)
+                # print(divFairError)
+                # #print(np.sum(self.ArrayOfElements))
+                # print(self.pre_covered_cells)
+                # print(self.EffectiveSize)
+                # print(self.ArrayOfElements)
+                # #print(criterionMatrix)
+                # #print(self.MetricMatrix)
+                # if iteration > 0 : 
+                #     print("CORRECTION MULTIPLIER : "+str(correctionMult))
+
+                #input()
                 #temp_sum_old = 0 
                 #if iteration > 0 :
                 #    temp_sum_old =temp_sum
@@ -465,11 +476,16 @@ class DARP:
                 correctionMult = np.zeros(self.droneNo)
 
                 for r in range(self.droneNo):
-                    if divFairError[r] < 0:
-                        TotalNegPerc += np.absolute(divFairError[r])
-                        totalNegPlainErrors += plainErrors[r]
+                    #if divFairError[r] < 0:
+                    TotalNegPerc += np.absolute(divFairError[r])
+                    totalNegPlainErrors += plainErrors[r]
 
                     correctionMult[r] = 1
+                
+                #USABLE PRINTS
+                # print("double value check")
+                # print(str(totalNegPlainErrors))
+                # print(str(TotalNegPerc))
 
                 for r in range(self.droneNo):
                     if totalNegPlainErrors != 0:
@@ -478,6 +494,8 @@ class DARP:
                         else:
                             correctionMult[r] = 1 - (plainErrors[r]/totalNegPlainErrors)*(TotalNegPerc/2)
 
+                        #USABLE PRINTS
+                        # print("correction multiplier "+str(correctionMult[r]))
                         #if no importance, returns correctionMult
                         criterionMatrix = self.calculateCriterionMatrix(
                                 self.TilesImportance[r],
@@ -535,8 +553,12 @@ class DARP:
             #print("NN "+str(len(self.pre_covered_cells[r])) ) 
             #print(connectedRobotRegions)
             #print( np.absolute(self.DesireableAssign[r] - self.ArrayOfElements[r] ) )
-            print("Error")
-            print( np.absolute(self.DesireableAssign[r] - self.ArrayOfElements[r] - len(self.pre_covered_cells[r])) )
+
+            #USABLE PRINTS
+            # print("Error")
+            # print(len(self.pre_covered_cells[r]))
+            # print( np.absolute(self.DesireableAssign[r] - self.ArrayOfElements[r] - len(self.pre_covered_cells[r])) )
+
             #print(self.DesireableAssign)
             #print(self.ArrayOfElements)
             #print(thresh)
@@ -546,7 +568,7 @@ class DARP:
         return True
 
     def IsThisAGoalState_new(self, thresh, connectedRobotRegions) : #TO MODIFYYYY
-
+        # print(" checkpoint 1 ")
         if self.IsNormalized :
             return self.IsThisAGoalState(thresh, connectedRobotRegions)
         else : 
@@ -557,10 +579,13 @@ class DARP:
                 for cell in self.pre_covered_cells[r] : 
                     if self.BinaryRobotMainRegion[r][ cell[0] ][ cell[1] ] == 1 :
                         pre_covered_cells_count = pre_covered_cells_count +1 
-                print("HERE" + str(pre_covered_cells_count))
+                
+                # print(" checkpoint 2 ")
+                # print("HERE" + str(pre_covered_cells_count))
                 if np.floor(self.robots_thresholds[r][0]*self.EffectiveSize) - np.sum(self.BinaryRobotMainRegion[r]) - pre_covered_cells_count  > 0 :
                     return False
 
+        # print(" checkpoint 3 ")
         for r in range(self.droneNo) : 
             print(np.floor(self.robots_thresholds[r][0]*self.EffectiveSize))
             print(np.sum(self.BinaryRobotMainRegion[r]))
