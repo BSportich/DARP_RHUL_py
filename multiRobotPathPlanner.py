@@ -487,7 +487,7 @@ def BuildMSTs(energy_MRPP, initial_positions, old_MSTs = [], precise_positions =
             energy_MRPP.mode_to_drone_turns = []
             AllRealPaths_dict = {}
             subCellsAssignment_dict = {}
-            
+            print("PRECISE POSITIONS "+str(precise_positions))
             #input()
             #Very important !!!!!!!!!!!!!!! 
             nb_mode = 4 #normally
@@ -499,6 +499,7 @@ def BuildMSTs(energy_MRPP, initial_positions, old_MSTs = [], precise_positions =
                 MSTs = calculateMSTs(energy_MRPP.darp_instance.corrected_cell_assignment, energy_MRPP.darp_instance.droneNo, energy_MRPP.darp_instance.rows, energy_MRPP.darp_instance.cols, mode, old_MSTs, initial_positions, energy_MRPP.darp_instance.initial_positions, full_covered_cells=full_covered_cells, rejected_cells=energy_MRPP.darp_instance.RejectedCells )
                 AllRealPaths = []
                 for r in range(energy_MRPP.darp_instance.droneNo):
+                    print("Computing paths for robot "+str(r))
                     ct = CalculateTrajectories(energy_MRPP.darp_instance.rows, energy_MRPP.darp_instance.cols, MSTs[r])
                     ct.initializeGraph(CalcRealBinaryReg(energy_MRPP.darp_instance.corrected_cell_assignment[r], energy_MRPP.darp_instance.rows, energy_MRPP.darp_instance.cols), True)
                     ct.RemoveTheAppropriateEdges()

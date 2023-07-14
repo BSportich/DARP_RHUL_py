@@ -216,7 +216,7 @@ class DARP:
         self.ArrayOfElements = np.zeros(self.droneNo)
         self.color = []
 
-        #input()
+        input()
 
         for r in range(self.droneNo):
             np.random.seed(r)
@@ -423,15 +423,16 @@ class DARP:
                 # print(self.DesireableAssign)
                 # print(self.robots_thresholds)
                 # print(plainErrors)
+                # print("SUM OF PLAIN ERRORS "+str(np.sum(plainErrors)))
                 # print(divFairError)
-                # #print(np.sum(self.ArrayOfElements))
+                #print(np.sum(self.ArrayOfElements))
                 # print(self.pre_covered_cells)
                 # print(self.EffectiveSize)
                 # print(self.ArrayOfElements)
-                # #print(criterionMatrix)
-                # #print(self.MetricMatrix)
-                # if iteration > 0 : 
-                #     print("CORRECTION MULTIPLIER : "+str(correctionMult))
+                #print(criterionMatrix)
+                #print(self.MetricMatrix)
+                if iteration > 0 : 
+                    print("CORRECTION MULTIPLIER : "+str(correctionMult))
 
                 #input()
                 #temp_sum_old = 0 
@@ -476,9 +477,9 @@ class DARP:
                 correctionMult = np.zeros(self.droneNo)
 
                 for r in range(self.droneNo):
-                    #if divFairError[r] < 0:
-                    TotalNegPerc += np.absolute(divFairError[r])
-                    totalNegPlainErrors += plainErrors[r]
+                    if divFairError[r] < 0:
+                        TotalNegPerc += np.absolute(divFairError[r])
+                        totalNegPlainErrors += plainErrors[r]
 
                     correctionMult[r] = 1
                 
@@ -737,7 +738,15 @@ class DARP:
                 if (self.opt_ass[r] * self.EffectiveSize ) < self.termThr or ( (self.opt_ass[r] * self.EffectiveSize)+ self.termThr) > self.EffectiveSize : 
                     print("ERROR : TERMTHR EXCEEDED EXPECTED VALUES ")
                     print("ERROR : LOWER OR UPPER THRESHOLD OUT OF BOUNDS FOR ROBOT "+str(r))
-                    exit()
+                    print(self.opt_ass)
+                    print(self.EffectiveSize)
+                    print(LowerThreshold)
+                    print(HigherThreshold)
+                    if self.opt_ass[r] == 0 : 
+                        print("ROBOTS AFFECTED 0 CELLS")
+                        input()
+                    else :
+                        exit()
 
             else : 
                 LowerThreshold = (self.opt_ass[r] * self.EffectiveSize) / self.EffectiveSize
