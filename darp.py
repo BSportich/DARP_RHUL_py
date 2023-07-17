@@ -641,6 +641,15 @@ class DARP:
                 tempSum = 0
                 for r in range(self.droneNo):
                     AllDistances[r, x, y] = euclidian_distance_points2d(np.array(self.initial_positions[r]), np.array((x, y))) # E!
+                    
+                    #Ben change
+                    if self.drones_energy[r] == 0 : 
+                         AllDistances[r,x,y] = float('inf')
+
+
+
+                    #End ben change
+
                     if AllDistances[r, x, y] > MaximunDist[r]:
                         MaximunDist[r] = AllDistances[r, x, y]
                     tempSum += AllDistances[r, x, y]
