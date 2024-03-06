@@ -118,12 +118,14 @@ class DARP:
                 #Ben_modif_end
                  MaxIter=80000, CCvariation=0.01,
                  randomLevel=0.0001, dcells=2,
+                 printok = False,
                  importance=False):
 
         self.rows = nx
         self.cols = ny
 
         #Ben_modif
+        self.printok = printok
         self.DARP_energy = DARP_energy
         self.strategy_no = strategy_no #Type of strategy 
         self.opt_ass_type = opt_ass_type # 1 or 2 : normalized or non-normalized
@@ -216,7 +218,7 @@ class DARP:
         self.ArrayOfElements = np.zeros(self.droneNo)
         self.color = []
 
-        input()
+        #input() DEBUGGER PRINT
 
         for r in range(self.droneNo):
             np.random.seed(r)
@@ -295,6 +297,7 @@ class DARP:
 
         if num_labels > 2:
             print("The environment grid MUST not have unreachable and/or closed shape regions")
+            print(labels_im)
             sys.exit(6)
 
         #ben_modif
@@ -405,8 +408,8 @@ class DARP:
                         upperThres = self.robots_thresholds[r][1]
                         #The error also
                         plainErrors[r] = (self.ArrayOfElements[r] - len( self.pre_covered_cells[r]  )  ) /self.EffectiveSize
-                        print("Array of ",self.ArrayOfElements[r])
-                        print((self.ArrayOfElements[r] - len( self.pre_covered_cells[r]  )  ) )
+                        if(self.printok) : print("Array of ",self.ArrayOfElements[r])
+                        if(self.printok) : print((self.ArrayOfElements[r] - len( self.pre_covered_cells[r]  )  ) )
                     else :  
                     #Ben_modif_end
                         plainErrors[r] = self.ArrayOfElements[r]/(self.DesireableAssign[r]*self.droneNo) 
@@ -432,7 +435,7 @@ class DARP:
                 #print(criterionMatrix)
                 #print(self.MetricMatrix)
                 if iteration > 0 : 
-                    print("CORRECTION MULTIPLIER : "+str(correctionMult))
+                    if(self.printok) : print("CORRECTION MULTIPLIER : "+str(correctionMult))
 
                 #input()
                 #temp_sum_old = 0 
@@ -548,7 +551,7 @@ class DARP:
 
     def IsThisAGoalState(self, thresh, connectedRobotRegions):
         #print("IS THIS A GOAL STATE")
-        print("thresh ", thresh)
+        if(self.printok) : print("thresh ", thresh)
         for r in range(self.droneNo):
             #Ben_modif
             #print("NN "+str(len(self.pre_covered_cells[r])) ) 
@@ -588,9 +591,10 @@ class DARP:
 
         # print(" checkpoint 3 ")
         for r in range(self.droneNo) : 
-            print(np.floor(self.robots_thresholds[r][0]*self.EffectiveSize))
-            print(np.sum(self.BinaryRobotMainRegion[r]))
-            print(thresh)
+            if(self.printok) : 
+                print(np.floor(self.robots_thresholds[r][0]*self.EffectiveSize))
+                print(np.sum(self.BinaryRobotMainRegion[r]))
+                print(thresh)
                   
         
         return True
@@ -730,8 +734,8 @@ class DARP:
             else : 
 
                 opt_ass[r] = 0
-        print("Optimal assignment is ", opt_ass)
-        print(np.sum(opt_ass))
+        if(self.printok) : print("Optimal assignment is ", opt_ass)
+        if(self.printok) : print(np.sum(opt_ass))
         return opt_ass
 
 

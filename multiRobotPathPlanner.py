@@ -110,7 +110,7 @@ def CollectData(DARP_instance, success, iteration) :
     print(data_table)
     return data_table
 
-def Experiments(number, nb_robots) : 
+def Experiments(number, nb_robots, size = 30 ) : 
 
     with open('experiments_review', mode='w') as csv_file:
         experiments_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -124,7 +124,7 @@ def Experiments(number, nb_robots) :
             total_errors_non_normalized = 0 
 
             for i in range(number) : 
-                nx, ny, dronesNo, initial_positions, obs_pos, drones_energy  = generate_instance_initial_random(10,10,r)
+                nx, ny, dronesNo, initial_positions, obs_pos, drones_energy  = generate_instance_initial_random(size,size,r)
 
                 print("Instance is "+str(drones_energy))
                 experiments_writer.writerow( ("Energy \t", " Initial Positions \t", " Obstacles Positions \t"))
@@ -213,14 +213,16 @@ def Experiments(number, nb_robots) :
     return
 
 
-def generate_instance_initial_random(rows, cols, nb_robots, full_random = False) : 
+
+
+def generate_instance_initial_random(rows, cols, nb_robots, full_random = False, energy_full = False) : 
 
     if full_random == True : 
         rows = np.random.randint(10,20)
         cols = np.random.randint(10,20)
         nb_robots = np.random.randint(3,7)
 
-    nb_obstacles =  np.random.randint(3,7)
+    nb_obstacles =  np.random.randint(3,7) * (rows / 10) * (cols / 10)
     #nb_obstacles = 30
 
 
@@ -267,8 +269,14 @@ def generate_instance_initial_random(rows, cols, nb_robots, full_random = False)
 
     #Generate energy situation
     robot_energy = []
-    for r in range(nb_robots) : 
-        robot_energy.append(  random.randint(5, np.floor( 100/nb_robots) ) )
+    if energy_full == False : 
+        for r in range(nb_robots) : 
+            robot_energy.append(  random.randint(5, np.floor( rows * cols /nb_robots) ) )
+    else :
+        for r in range(nb_robots) : 
+            robot_energy.append(  np.floor( rows * cols /nb_robots) )  
+
+    
 
 
     return rows, cols, nb_robots, robots_start_pos_list, obstacle_list, robot_energy
@@ -491,7 +499,7 @@ def BuildMSTs(energy_MRPP, initial_positions, old_MSTs = [], precise_positions =
             #input()
             #Very important !!!!!!!!!!!!!!! 
             nb_mode = 4 #normally
-            nb_mode = 1 
+            nb_mode = 1
             for mode in range(nb_mode):
                 print("Corrected assignment")
                 print(energy_MRPP.darp_instance.corrected_cell_assignment)
@@ -728,7 +736,7 @@ if __name__ == '__main__':
 
     if args.exp == True :
         print("LAUCHING EXPERIMENTS")
-        Experiments(100,5)
+        Experiments(1000,5)
     elif args.energy!= []:
         MultiRobotPathPlanner(args.grid[0], args.grid[1], args.nep, args.in_pos,  args.portions, args.obs_pos, args.vis, args.energy)
     else : 
