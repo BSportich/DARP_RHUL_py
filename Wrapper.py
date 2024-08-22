@@ -21,6 +21,9 @@ class DARP_step :
         self.pre_covered_cells = []  #Not precise format
         self.full_covered_cells = [] #Not precise format
 
+        self.pre_covered_cells_encoded = []
+        self.full_covered_cells_encoded = []
+
         self.cost_one_cell = None
 
         #resolution data storage
@@ -67,7 +70,8 @@ class DARP_step :
 
                 pre_covered_cells_encoded.append( pre_covered_cells_encoded_r )
                 
-            
+        self.pre_covered_cells_encoded = pre_covered_cells_encoded
+        self.full_covered_cells_encoded = full_covered_cells_encoded
              
 
         self.MRPP = Energy_MRPP(nx, ny, True, self.current_position, np.ones((1,len(self.drones_energy))) , (self.obstacle_pos + full_covered_cells_encoded), self.drones_energy , visualization, pre_covered_cells= pre_covered_cells_encoded )
@@ -219,7 +223,7 @@ class DARP_instance :
         print(drones_energy)
 
         if visualization == True :
-            image = visualize_paths(self.DARP_steps[-1].future_paths , self.DARP_steps[-1].subcell_assignment, self.dronesNo , self.DARP_steps[-1].DARP_results.color)
+            image = visualize_paths(self.DARP_steps[-1].future_paths , self.DARP_steps[-1].subcell_assignment, self.dronesNo , self.DARP_steps[-1].DARP_results.color, self.DARP_steps[-1].full_covered_cells)
             
             print("START POSITIONS " +str(self.start_positions))
             print("CURRENT POSITIONS "+str(drones_pos_precise))
@@ -298,7 +302,7 @@ class DARP_instance :
         #visualize
         if visualization == True :
                 image = visualize_paths(self.DARP_steps[-1].future_paths , subcell_assignment,
-                                        self.dronesNo , DARP_result.color)
+                                        self.dronesNo , DARP_result.color, self.DARP_steps[-1].full_covered_cells)
 
                 image.visualize_paths_with_pos("Combined Modes", self.start_positions, self.DARP_steps[-1].current_position_precise, self.cols, self.DARP_steps[-1].performed_paths )
 
@@ -802,7 +806,7 @@ def CheckIfDisjointed(rows, cols, obstacles_positions, dronesNo, initial_positio
         label_drone = labels_im[x][y]
         number_cells = np.count_nonzero(x == labels_im)
         print(number_cells)
-        if( number_cells >= )
+        #if( number_cells >= )
 
 
     #get disjointed areas

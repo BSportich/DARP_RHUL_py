@@ -12,7 +12,7 @@ RED =  (255, 0, 0)
 WHITE = (255,255,255)
 
 class visualize_paths():
-    def __init__(self, AllRealPaths, subCellsAssignment, DroneNo, color):
+    def __init__(self, AllRealPaths, subCellsAssignment, DroneNo, color, full_covered_cells = [], pre_covered_cells = None):
         self.AllRealPaths = AllRealPaths
         self.subCellsAssignment = subCellsAssignment
         min_max_scaler = MinMaxScaler(feature_range=(0, 800))
@@ -26,6 +26,8 @@ class visualize_paths():
                       'gridCellsY': self.subCellsAssignment.shape[1],
                       'lineWidth': 2}
         self.color = color
+        self.full_covered_cells = full_covered_cells
+        self.pre_covered_cells = pre_covered_cells
 
     def visualize_paths(self, mode):
         pygame.init()
@@ -105,15 +107,27 @@ class visualize_paths():
 
         cellBorder = 0
 
+        #CHANGE HERE FOR IMPROVED VISUALS
         for row in range(self.subCellsAssignment.shape[0]):
             for column in range(self.subCellsAssignment.shape[1]):
                 if (self.subCellsAssignment[row][column] == self.DroneNo):
+                    print(self.subCellsAssignment)
+                    #change_ben
+                    color_to_use = BLACK
+                    if self.full_covered_cells != [] : 
+                        print(self.full_covered_cells)
+                        for r in range(self.DroneNo) : 
+                            if ( int(row/2), int(column/2) )in self.full_covered_cells[r] : 
+                                color_to_use = self.color[r]
+                                print("COLOR CHANGED FOR "+str((row, column))+" into "+str(color_to_use))
+
+
                     self.drawSquareCell(
                         self._VARS['gridOrigin'][0] + (celldimX*column)
                         + self._VARS['lineWidth']/2,
                         self._VARS['gridOrigin'][1] + (celldimY*row)
                         + self._VARS['lineWidth']/2,
-                        celldimX, celldimY, BLACK)
+                        celldimX, celldimY, color_to_use)
 
     # Draw filled rectangle at coordinates
     def drawSquareCell(self, x, y, dimX, dimY, color):
