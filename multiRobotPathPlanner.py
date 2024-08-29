@@ -274,7 +274,7 @@ def generate_instance_initial_random(rows, cols, nb_robots, full_random = False,
             robot_energy.append(  random.randint(5, np.floor( rows * cols /nb_robots) ) )
     else :
         for r in range(nb_robots) : 
-            robot_energy.append(  np.floor( rows * cols /nb_robots) )  
+            robot_energy.append(  np.floor( rows * cols /nb_robots-1) )  
 
     
 

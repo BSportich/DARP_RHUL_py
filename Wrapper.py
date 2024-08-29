@@ -6,11 +6,11 @@ import numpy as np
 import random as random
 import Edges
 #import rosplan_interface_copy as ri_copy
-from diagnostic_msgs.msg import KeyValue
+#from diagnostic_msgs.msg import KeyValue
 import math
 
 class DARP_step : 
-    def __init__(self, step, drones_energy, current_position, obstacle_pos, current_position_precise = []) :
+    def __init__(self, step, drones_energy, current_position, obstacle_pos, current_position_precise = [], drones_energy_rates = [], drones_generation_factors = []) :
         #pre resolution
         self.step = step 
         self.drones_energy = drones_energy
@@ -45,6 +45,10 @@ class DARP_step :
         #Post resolution post execution
         self.performed_paths = []
         self.accumulated_paths = None
+
+        #generation energy
+        self.drones_energy_rates = drones_energy_rates
+        self.drones_generation_factors = drones_generation_factors
 
     def solve_step(self, nx, ny, visualization ) : 
 
@@ -107,6 +111,10 @@ class DARP_instance :
         self.DARP_steps = []
         #self.createInitialStep()
 
+        #generation energy
+        self.drones_energy_rates = []
+        self.drones_generation_factors = []
+
         self.goal_waypoint = []
         self.waypoints_history_robots = []
         self.old_waypoints_info = []
@@ -117,7 +125,7 @@ class DARP_instance :
     
     
     def createInitialStep(self) : 
-        initial_step = DARP_step(0, [ ((nx * ny ) - len(self.obstacles_start)) / self.dronesNo] * self.dronesNo, self.start_positions, self.obstacles_start)
+        initial_step = DARP_step(0, [ round(((nx * ny ) - len(self.obstacles_start)) / (self.dronesNo-1))] * self.dronesNo, self.start_positions, self.obstacles_start, drones_energy_rates= self.drones_energy_rates, drones_generation_factors=self.drones_generation_factors)
         
         self.DARP_steps.append( initial_step )
 
@@ -132,10 +140,10 @@ class DARP_instance :
     def addStep(self, drones_energy, current_position, current_position_precise, obstacles_pos, rewrite_obstacle = False ) : 
 
         if rewrite_obstacle == True : 
-                        new_step = DARP_step( len(self.DARP_steps), drones_energy, current_position, obstacles_pos, current_position_precise )
+                        new_step = DARP_step( len(self.DARP_steps), drones_energy, current_position, obstacles_pos, current_position_precise, drones_generation_factors=self.drones_generation_factors )
 
         else : 
-            new_step = DARP_step( len(self.DARP_steps), drones_energy, current_position, self.DARP_steps[-1].obstacle_pos + obstacles_pos, current_position_precise )
+            new_step = DARP_step( len(self.DARP_steps), drones_energy, current_position, self.DARP_steps[-1].obstacle_pos + obstacles_pos, current_position_precise, drones_generation_factors=self.drones_generation_factors )
             print(self.DARP_steps[-1].obstacle_pos + obstacles_pos)
             print(obstacles_pos)
             input()
@@ -157,16 +165,29 @@ class DARP_instance :
 
                 factor = max( int(self.DARP_steps[-1].drones_energy[r]/ 3 ), 10 )
 
-                generation_factor = random.randint(0,factor)
+                if self.drones_generation_factors != [] : 
+                    factor = self.drones_generation_factors[r]
+                print("Robot "+str(r))
+                print("FACTOR IS "+str(factor))
+                generation_factor = random.randint(int(factor/2),factor)
+
+                print("GENERATION FACTOR IS "+str(generation_factor))
                 consumption_factor = random.randint(80,120) / 100 
-     
-                r_energy = self.DARP_steps[-1].drones_energy[r] - ( generation_factor * consumption_factor ) 
 
+                if self.drones_energy_rates!=[] : 
+                    consumption_factor = self.drones_energy_rates[r]
+
+                print("CONSUMPTION FACTOR IS "+str(consumption_factor))
+                r_energy = self.DARP_steps[-1].drones_energy[r] - ( generation_factor * consumption_factor * 0.25) 
+
+                i=0
                 while r_energy < 0 :
-                    generation_factor = random.randint(0,factor)
-                    consumption_factor = random.randint(80,120) / 100 
+                    i=i+1
+                    generation_factor = random.randint(int(factor/(2+i)),(factor/1+i))
+                    
+                    print(str(i)+" GENERATION FACTOR IS "+str(generation_factor))
 
-                    r_energy = self.DARP_steps[-1].drones_energy[r] - ( generation_factor * consumption_factor ) 
+                    r_energy = self.DARP_steps[-1].drones_energy[r] - ( generation_factor * consumption_factor * 0.25) 
 
                     #print("evaluation")
                     #print( generation_factor * consumption_factor )
@@ -181,6 +202,10 @@ class DARP_instance :
             #    generation_factor = 0 
             #else : 
             #    r_energy = r_energy +12
+
+            print("CONSUMPTION FACTOR IS "+str(consumption_factor))
+            print("GENERATION FACTOR IS "+str(generation_factor))
+            input()
 
             drones_energy.append( r_energy )
 
@@ -265,9 +290,9 @@ class DARP_instance :
         return best_case_paths, subcell_assignment, MSTs
 
     def finalize_step(self, visualization = True, vis_real_time = False) : 
-        print(" Resolution ")
+        print(" Resolution : step "+str(len(self.DARP_steps) -1))
         DARP_result = self.divide_regions_last_step( vis = vis_real_time )   #Change here for DARP visuals in real time
-
+        input()
 
         #if not step 0, insert pre-covered cells part of the path
         if self.DARP_steps[-1].step !=0 : 
@@ -834,7 +859,7 @@ def CheckIfDisjointed2() :
 
 
 if __name__ == '__main__':
-    nx, ny, dronesNo, initial_positions, obs_pos, drones_energy = generate_instance_initial_random(10,10,3)
+    nx, ny, dronesNo, initial_positions, obs_pos, drones_energy = generate_instance_initial_random(20,20,5)
 
     # nx, ny = 16, 8 
     # initial_positions =  [38, 54, 47]
@@ -850,7 +875,12 @@ if __name__ == '__main__':
     print ("Energy \t", " Initial Positions \t", " Obstacles Positions \t")
     print( (drones_energy, initial_positions, obs_pos) )
     DARP_instance_obj = DARP_instance(nx, ny, initial_positions, obs_pos, 1 )
-    #DARP_instance_obj.energy_level = drones_energy
+    input()
+    #Factors value 
+    DARP_instance_obj.drones_energy_rates = [0.50,0.50,1.50,0.50,1.50]
+    DARP_instance_obj.drones_energy_rates = [1.50,1.50,0.50,1.50,0.50]
+    DARP_instance_obj.drones_generation_factors = [80,80,80,80,80 ]
+    DARP_instance_obj.energy_level = drones_energy
     DARP_instance_obj.createInitialStep()
     #DARP_instance_obj.createInitialStepFromData()
     DARP_instance_obj.finalize_step(vis_real_time=False)
@@ -860,14 +890,16 @@ if __name__ == '__main__':
     #DARP_instance_obj.InsertinDB()
     #DARP_instance_obj.callRosPlanExecution()
     # exit(1)
+    i=0
     while True : 
+        print("NEW STEP "+str(i+1))
         input()
         performed_paths = DARP_instance_obj.generateNewStep()
 
         #DARP_instance_obj.DARP_steps[-1].drones_energy = [80.2, 80.2, 0]
         DARP_instance_obj.PreProcessSolveStep()
     
-        DARP_instance_obj.finalize_step(vis_real_time=True)
+        DARP_instance_obj.finalize_step(vis_real_time=False)
 
         cpp_string = []
 

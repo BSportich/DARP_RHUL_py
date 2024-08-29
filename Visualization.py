@@ -111,15 +111,15 @@ class visualize_paths():
         for row in range(self.subCellsAssignment.shape[0]):
             for column in range(self.subCellsAssignment.shape[1]):
                 if (self.subCellsAssignment[row][column] == self.DroneNo):
-                    print(self.subCellsAssignment)
+                    #print(self.subCellsAssignment)
                     #change_ben
                     color_to_use = BLACK
                     if self.full_covered_cells != [] : 
-                        print(self.full_covered_cells)
+                        #print(self.full_covered_cells)
                         for r in range(self.DroneNo) : 
                             if ( int(row/2), int(column/2) )in self.full_covered_cells[r] : 
                                 color_to_use = self.color[r]
-                                print("COLOR CHANGED FOR "+str((row, column))+" into "+str(color_to_use))
+                                #print("COLOR CHANGED FOR "+str((row, column))+" into "+str(color_to_use))
 
 
                     self.drawSquareCell(

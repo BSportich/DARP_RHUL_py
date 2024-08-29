@@ -46,7 +46,7 @@ def assign(droneNo, rows, cols, GridEnv, MetricMatrix, A):
                 A[i, j] = droneNo
             #Ben_modif pre covered cells
             elif GridEnv[i,j] <= -100 : 
-                print("HOLAAAAA")
+                # print("HOLAAAAA")
                 temp_value =   - ( GridEnv[i,j] / 100 ) - 1 
                 #print("TEMP VALUE "+str(temp_value))
                 A[i,j] = temp_value
@@ -225,8 +225,8 @@ class DARP:
             self.color.append(list(np.random.choice(range(256), size=3)))
         
         np.random.seed(1)
-        if self.visualization:
-            self.assignment_matrix_visualization = darp_area_visualization(self.A, self.droneNo, self.color, self.initial_positions)
+        #if self.visualization:
+        self.assignment_matrix_visualization = darp_area_visualization(self.A, self.droneNo, self.color, self.initial_positions)
 
     def sanity_check(self, given_initial_positions, given_portions, obs_pos, notEqualPortions, DARP_energy = False):
         initial_positions = []
@@ -454,8 +454,8 @@ class DARP:
                     if self.IsThisAGoalState_new(self.termThr, ConnectedRobotRegions) : 
 
                         self.CellsRejectionProcess()
-                        #self.assignment_matrix_visualization.placeCells_withRejection(self.A, self.corrected_cell_assignment, iteration_number=iteration)  
-                        #time.sleep(1)
+                        self.assignment_matrix_visualization.placeCells_withRejection(self.A, self.corrected_cell_assignment, iteration_number=iteration)  
+                        time.sleep(1)
                         
                         break
 
@@ -473,6 +473,8 @@ class DARP:
                 else :
                 #Ben_modif_end
                     if self.IsThisAGoalState(self.termThr, ConnectedRobotRegions):
+                        self.assignment_matrix_visualization.placeCells(self.A, iteration_number=iteration)
+                        time.sleep(1)
                         break
 
                 TotalNegPerc = 0
@@ -784,8 +786,14 @@ class DARP:
     def CellsRejectionProcess(self): 
 
         print("REJECTION ")
-        print(self.BinaryRobotMainRegion)
+        #print(self.BinaryRobotMainRegion)
         #print(self.valuation_grid)
+        print("ENERGY IS "+str(self.drones_energy))
+        temp_tab = []
+        for r in range(self.droneNo) : 
+            temp_tab.append(np.sum(self.BinaryRobotMainRegion[r]))
+        print("CELLS SETS ARE :"+str(temp_tab))
+
         
         for r in range(self.droneNo) : 
 
