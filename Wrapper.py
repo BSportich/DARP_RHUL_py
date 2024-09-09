@@ -820,6 +820,12 @@ def CheckIfDisjointed(rows, cols, obstacles_positions, dronesNo, initial_positio
 
 
     #if disjointed
+    drones_zones_label = []
+    zones_nb_cells = {}
+    zones_energy_available = {}
+    zones_boolean = {}
+    drones_energy_extra = [0] * dronesNo
+    new_drones_energy = []
     for drone in range(dronesNo) : 
         print(drone)
         print("original pos "+str(initial_positions))
@@ -829,10 +835,59 @@ def CheckIfDisjointed(rows, cols, obstacles_positions, dronesNo, initial_positio
         print("check pos "+str(x * cols + y))
 
         label_drone = labels_im[x][y]
+        if label_drone not in drones_zones_label : 
+            drones_zones_label.append( label_drone )
         number_cells = np.count_nonzero(x == labels_im)
+        zones_nb_cells[ labels_im ] = number_cells
         print(number_cells)
-        #if( number_cells >= )
+    
+    zones_drones = {}
+    for zone in zones_nb_cells.keys() :
+        zones_energy_available[zone] = 0
+        
+        temp_drone_zone_list = []
+        for r in range(dronesNo) : 
+            if drones_zones_label[r] == zone : 
+                temp_drone_zone_list.append(r)
+                zones_energy_available[zone] = zones_energy_available[zone] + drones_energy[r]
+        zones_drones[zone] = temp_drone_zone_list
 
+    #Puts zone boolean at true if more energy than cells available in that zone
+    zone_i = 0 
+    for zone in zones_nb_cells.keys() : 
+        if zones_energy_available[zone] > zones_nb_cells[zone] : 
+            zones_boolean[zone] = True
+            zone_i = zone_i + 1
+        else : 
+            zones_boolean[zone] = False
+
+    #if unconnected zones have unbalanced energy
+    if zone_i !=0 and zone_i!= len(drones_zones_label) : 
+        for zone in zones_nb_cells.keys() : 
+            if zones_boolean == True : 
+
+                for r in zones_drones[zone] : 
+                    new_drones_energy[r] = (drones_energy[r] / zones_energy_available[zone] ) * zones_nb_cells[zone] 
+                    drones_energy_extra[r] = drones_energy[r] - new_drones_energy
+    
+    #If one zone has extra energy (and some others have too low)
+    #Temporary put energy level of the robot the exact number of cells in its zone (or its proportionnate share if more of one robot in the zone)
+
+
+
+
+
+
+        
+
+
+
+
+    
+
+    #Two cases of disjunction 
+    #Case 1 : no robot in the zone to discharge
+    #Case 2 : robot in the zone to discharge !!!!!!!!!!!!!!!!!!!!!!!
 
     #get disjointed areas
 
