@@ -353,7 +353,7 @@ class DARP_instance :
     
     #To be executed after new step was created but before its resolution 
     def PreProcessSolveStep( self ) : 
-
+        print(" PRE PROCESS SOLVE STEP "+ str(len(self.DARP_steps)))
         if len(self.DARP_steps) >= 2 : 
 
             accumulated_paths = []
@@ -361,12 +361,14 @@ class DARP_instance :
                 accumulated_paths.append( [] )
 
 
-            for i in range(2,  len(self.DARP_steps)) : 
+            for i in range(1,  len(self.DARP_steps)+1) : 
 
                 for r in range(self.dronesNo) : 
-                    
+                    print("performed paths")
+                    print(self.DARP_steps[-i].performed_paths)
                     performed_paths = self.DARP_steps[-i].performed_paths
-                    accumulated_paths[r]= accumulated_paths[r] + performed_paths[r]
+                    if performed_paths != [] : 
+                        accumulated_paths[r]= accumulated_paths[r] + performed_paths[r]
             
             print("accumulated performed paths")
             print(accumulated_paths)
