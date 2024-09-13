@@ -222,7 +222,7 @@ def generate_instance_initial_random(rows, cols, nb_robots, full_random = False,
         cols = np.random.randint(10,20)
         nb_robots = np.random.randint(3,7)
 
-    nb_obstacles =  np.random.randint(3,7) * (rows / 10) * (cols / 10)
+    nb_obstacles =  np.random.randint(10,15) * (rows / 10) * (cols / 10)
     #nb_obstacles = 30
 
 
@@ -293,7 +293,7 @@ def createValuationGrid(rows, cols, obstacle_list):
 class Energy_MRPP(DARP):
     def __init__(self, nx, ny, notEqualPortions, initial_positions, portions,
                  obs_pos, drones_energy, visualization, pre_covered_cells = [], MaxIter=80000, CCvariation=0.01,
-                 randomLevel=0.0001, dcells=2, importance=False):
+                 randomLevel=0.0001, dcells=2, importance=False, forced_disjoint = False):
 
         self.start_time = time.time()
         # Initialize DARP
@@ -301,7 +301,7 @@ class Energy_MRPP(DARP):
                                     DARP_energy=True, pre_covered_cells = pre_covered_cells, drones_energy = drones_energy, 
                                   MaxIter=MaxIter, CCvariation=CCvariation,
                                   randomLevel=randomLevel, dcells=dcells,
-                                  importance=importance)
+                                  importance=importance, forced_disjoint = forced_disjoint)
 
 
     def divide(self) :
@@ -503,7 +503,7 @@ def BuildMSTs(energy_MRPP, initial_positions, old_MSTs = [], precise_positions =
             for mode in range(nb_mode):
                 print("Corrected assignment")
                 print(energy_MRPP.darp_instance.corrected_cell_assignment)
-
+                # input()
                 MSTs = calculateMSTs(energy_MRPP.darp_instance.corrected_cell_assignment, energy_MRPP.darp_instance.droneNo, energy_MRPP.darp_instance.rows, energy_MRPP.darp_instance.cols, mode, old_MSTs, initial_positions, energy_MRPP.darp_instance.initial_positions, full_covered_cells=full_covered_cells, rejected_cells=energy_MRPP.darp_instance.RejectedCells )
                 AllRealPaths = []
                 for r in range(energy_MRPP.darp_instance.droneNo):

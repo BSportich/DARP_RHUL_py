@@ -121,7 +121,7 @@ def findCelltoReject(grid, value_grid, rows, cols, bridges, starting_cell) :
 #Reject enough cells for the cell count to be <= max_nb_cells
 def RejectionProcess(binarymap, value_grid, rows, cols, max_nb_cells, starting_cell, precovered_cells) : 
 
-    current_cell_count = np.sum(binarymap)
+    current_cell_count = np.sum(binarymap) - len(precovered_cells)
     grid_copy = np.copy(binarymap)
     value_copy = np.copy(value_grid)
     rejected_cells = []

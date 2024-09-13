@@ -8,6 +8,8 @@ import Edges
 #import rosplan_interface_copy as ri_copy
 #from diagnostic_msgs.msg import KeyValue
 import math
+import sys
+import cv2
 
 class DARP_step : 
     def __init__(self, step, drones_energy, current_position, obstacle_pos, current_position_precise = [], drones_energy_rates = [], drones_generation_factors = []) :
@@ -50,7 +52,44 @@ class DARP_step :
         self.drones_energy_rates = drones_energy_rates
         self.drones_generation_factors = drones_generation_factors
 
-    def solve_step(self, nx, ny, visualization ) : 
+
+    def solve_step(self, nx, ny, visualization , forced_disjoint = False) : 
+
+        # pre_covered_cells_encoded = []
+        # full_covered_cells_encoded = [] 
+
+        # print("full covered cells")
+        # print(self.full_covered_cells)
+        # #Encoding pre covered cells and full covered cells 
+        # if self.full_covered_cells != [] : 
+        #     for r in range(len(self.drones_energy)) : 
+        #         for fcc in self.full_covered_cells[r] : 
+        #             if fcc != [] : 
+        #                 full_covered_cells_encoded.append( fcc[0] * ny + fcc[1] )
+
+        # print("pre covered cells")
+        # print(self.pre_covered_cells)
+        # if self.pre_covered_cells != [] : 
+        #     for r in range(len(self.drones_energy)) : 
+        #         pre_covered_cells_encoded_r = []
+        #         for pcc in self.pre_covered_cells[r] : 
+        #             pre_covered_cells_encoded_r.append( pcc[0] * ny + pcc[1] )
+
+        #         pre_covered_cells_encoded.append( pre_covered_cells_encoded_r )
+                
+        # self.pre_covered_cells_encoded = pre_covered_cells_encoded
+        # self.full_covered_cells_encoded = full_covered_cells_encoded
+             
+
+        self.MRPP = Energy_MRPP(nx, ny, True, self.current_position, np.ones((1,len(self.drones_energy))) , (self.obstacle_pos + self.full_covered_cells_encoded), self.drones_energy , visualization, pre_covered_cells= self.pre_covered_cells_encoded, forced_disjoint = forced_disjoint )
+        #self.MRPP = Energy_MRPP(nx, ny, True, self.current_position, np.ones((1,len(self.drones_energy))) , self.obstacle_pos, self.drones_energy , visualization )
+        
+        self.DARP_results, self.DARP_sucess, self.iterations = self.MRPP.divide()
+        
+        return self.DARP_results, self.DARP_sucess, self.iterations
+    
+
+    def encode_cells(self) : 
 
         pre_covered_cells_encoded = []
         full_covered_cells_encoded = [] 
@@ -76,14 +115,6 @@ class DARP_step :
                 
         self.pre_covered_cells_encoded = pre_covered_cells_encoded
         self.full_covered_cells_encoded = full_covered_cells_encoded
-             
-
-        self.MRPP = Energy_MRPP(nx, ny, True, self.current_position, np.ones((1,len(self.drones_energy))) , (self.obstacle_pos + full_covered_cells_encoded), self.drones_energy , visualization, pre_covered_cells= pre_covered_cells_encoded )
-        #self.MRPP = Energy_MRPP(nx, ny, True, self.current_position, np.ones((1,len(self.drones_energy))) , self.obstacle_pos, self.drones_energy , visualization )
-        
-        self.DARP_results, self.DARP_sucess, self.iterations = self.MRPP.divide()
-        
-        return self.DARP_results, self.DARP_sucess, self.iterations
 
         
 
@@ -125,7 +156,7 @@ class DARP_instance :
     
     
     def createInitialStep(self) : 
-        initial_step = DARP_step(0, [ round(((nx * ny ) - len(self.obstacles_start)) / (self.dronesNo-1))] * self.dronesNo, self.start_positions, self.obstacles_start, drones_energy_rates= self.drones_energy_rates, drones_generation_factors=self.drones_generation_factors)
+        initial_step = DARP_step(0, [ round(((nx * ny ) - len(self.obstacles_start)) / (self.dronesNo))] * self.dronesNo, self.start_positions, self.obstacles_start, drones_energy_rates= self.drones_energy_rates, drones_generation_factors=self.drones_generation_factors)
         
         self.DARP_steps.append( initial_step )
 
@@ -205,6 +236,7 @@ class DARP_instance :
 
             print("CONSUMPTION FACTOR IS "+str(consumption_factor))
             print("GENERATION FACTOR IS "+str(generation_factor))
+            print("ENERGY IS "+str(r_energy))
             input()
 
             drones_energy.append( r_energy )
@@ -245,14 +277,19 @@ class DARP_instance :
 
         #blabla
         print(drones_pos)
+        print("OLD ENERGY")
+        print(self.DARP_steps[-1].drones_energy)
+        print("NEW ENERGY")
         print(drones_energy)
+        # input()
+        
 
         if visualization == True :
             image = visualize_paths(self.DARP_steps[-1].future_paths , self.DARP_steps[-1].subcell_assignment, self.dronesNo , self.DARP_steps[-1].DARP_results.color, self.DARP_steps[-1].full_covered_cells)
             
             print("START POSITIONS " +str(self.start_positions))
             print("CURRENT POSITIONS "+str(drones_pos_precise))
-            print(performed_paths)
+            #print(performed_paths)
             #input()
             image.visualize_paths_with_pos("Combined Modes", self.start_positions, drones_pos_precise, self.cols, performed_paths )
 
@@ -269,11 +306,11 @@ class DARP_instance :
 
 
 
-    def divide_regions_last_step(self, vis = True) : 
+    def divide_regions_last_step(self, vis = True, forced_disjoint = False) : 
 
         last_step = self.DARP_steps[-1]
         
-        darp_results, success, iteration = last_step.solve_step(self.rows, self.cols, vis)
+        darp_results, success, iteration = last_step.solve_step(self.rows, self.cols, vis, forced_disjoint = forced_disjoint)
 
         return darp_results
 
@@ -289,9 +326,10 @@ class DARP_instance :
 
         return best_case_paths, subcell_assignment, MSTs
 
-    def finalize_step(self, visualization = True, vis_real_time = False) : 
+    def finalize_step(self, visualization = True, vis_real_time = False, forced_disjoint = False) : 
         print(" Resolution : step "+str(len(self.DARP_steps) -1))
-        DARP_result = self.divide_regions_last_step( vis = vis_real_time )   #Change here for DARP visuals in real time
+        DARP_result = self.divide_regions_last_step( vis = vis_real_time , forced_disjoint = forced_disjoint)   #Change here for DARP visuals in real time
+        
         input()
 
         #if not step 0, insert pre-covered cells part of the path
@@ -364,14 +402,14 @@ class DARP_instance :
             for i in range(1,  len(self.DARP_steps)+1) : 
 
                 for r in range(self.dronesNo) : 
-                    print("performed paths")
-                    print(self.DARP_steps[-i].performed_paths)
+                    #print("performed paths")
+                    #print(self.DARP_steps[-i].performed_paths)
                     performed_paths = self.DARP_steps[-i].performed_paths
                     if performed_paths != [] : 
                         accumulated_paths[r]= accumulated_paths[r] + performed_paths[r]
             
-            print("accumulated performed paths")
-            print(accumulated_paths)
+            #print("accumulated performed paths")
+            #print(accumulated_paths)
             self.DARP_steps[-2].accumulated_paths = accumulated_paths
             input()
             #performed_paths = self.DARP_steps[-2].performed_paths #last step is the one not solved yet 
@@ -382,6 +420,10 @@ class DARP_instance :
             for r in range(self.dronesNo) : 
                 self.DARP_steps[-1].pre_covered_cells.append( pre_covered_cells[r] )
                 self.DARP_steps[-1].full_covered_cells.append( full_covered_cells[r] )
+
+            
+            #Do pre covered and full covered encoded
+            self.DARP_steps[-1].encode_cells()
 
             print( str(pre_covered_cells)+" "+str( full_covered_cells ))
 
@@ -799,14 +841,17 @@ def OneInstanceWithBaseline(nb_step, size, nb_robots) :
 
     return
 
-def CheckIfDisjointed(rows, cols, obstacles_positions, dronesNo, initial_positions, drones_energy) : 
+def CheckIfDisjointed(rows, cols, obstacles_positions, dronesNo, initial_positions, drones_energy, pre_covered_cells) : 
 
+    Answer = False
     #check
     GridEnv = np.full(shape=(rows, cols), fill_value=-1)  # create non obstacle map with value -1
         
     # obstacle tiles value is -2
     for idx, obstacle_pos in enumerate(obstacles_positions):
-        GridEnv[obstacle_pos[0], obstacle_pos[1]] = -2
+        #print(obstacle_pos)
+        obs_pos = (obstacle_pos // cols, obstacle_pos % cols)
+        GridEnv[obs_pos[0], obs_pos[1]] = -2
 
     connectivity = np.zeros((rows, cols))
     
@@ -818,30 +863,48 @@ def CheckIfDisjointed(rows, cols, obstacles_positions, dronesNo, initial_positio
     if num_labels > 2:
         print("The environment grid MUST not have unreachable and/or closed shape regions")
         print(labels_im)
-        sys.exit(6)
+        #sys.exit(6)
+        Answer = True
+    else : 
+        return False, None, None, None
 
 
     #if disjointed
     drones_zones_label = []
+    drones_zones_tab = []
     zones_nb_cells = {}
     zones_energy_available = {}
     zones_boolean = {}
     drones_energy_extra = [0] * dronesNo
-    new_drones_energy = []
+    drones_energy_new_cells = drones_energy.copy()
+    energy_pre_covered_cells = [0] * dronesNo
+    new_drones_energy = drones_energy.copy()
+
+    for r in range(dronesNo) : 
+        energy_pre_covered_cells[r] = (len(pre_covered_cells[r]) *0.5 )
+        drones_energy_new_cells[r] = drones_energy[r] - energy_pre_covered_cells[r]
+        if drones_energy_new_cells[r] < 0 : 
+            drones_energy_new_cells[r] = 0
+
+
     for drone in range(dronesNo) : 
         print(drone)
         print("original pos "+str(initial_positions))
 
-        y = initial_positions[drone] % cols
-        x = (initial_positions - y) / cols  
+        y = int( initial_positions[drone] % cols )
+        x = int( (initial_positions[drone] - y) / cols )
         print("check pos "+str(x * cols + y))
 
         label_drone = labels_im[x][y]
+        print("Label drone is "+str(label_drone))
+        drones_zones_tab.append( label_drone )
         if label_drone not in drones_zones_label : 
             drones_zones_label.append( label_drone )
-        number_cells = np.count_nonzero(x == labels_im)
-        zones_nb_cells[ labels_im ] = number_cells
+        number_cells = np.count_nonzero(label_drone == labels_im)
+        print("number cells is "+str(number_cells))
+        zones_nb_cells[ label_drone ] = number_cells
         print(number_cells)
+    print(zones_nb_cells)
     
     zones_drones = {}
     for zone in zones_nb_cells.keys() :
@@ -849,9 +912,9 @@ def CheckIfDisjointed(rows, cols, obstacles_positions, dronesNo, initial_positio
         
         temp_drone_zone_list = []
         for r in range(dronesNo) : 
-            if drones_zones_label[r] == zone : 
+            if drones_zones_tab[r] == zone : 
                 temp_drone_zone_list.append(r)
-                zones_energy_available[zone] = zones_energy_available[zone] + drones_energy[r]
+                zones_energy_available[zone] = zones_energy_available[zone] + drones_energy_new_cells[r]
         zones_drones[zone] = temp_drone_zone_list
 
     #Puts zone boolean at true if more energy than cells available in that zone
@@ -869,11 +932,23 @@ def CheckIfDisjointed(rows, cols, obstacles_positions, dronesNo, initial_positio
             if zones_boolean == True : 
 
                 for r in zones_drones[zone] : 
-                    new_drones_energy[r] = (drones_energy[r] / zones_energy_available[zone] ) * zones_nb_cells[zone] 
-                    drones_energy_extra[r] = drones_energy[r] - new_drones_energy
+                    new_drones_energy[r] = round((drones_energy_new_cells[r] / zones_energy_available[zone] ) * zones_nb_cells[zone] ) + (len(pre_covered_cells[r]) *0.5 )
+                    drones_energy_extra[r] = drones_energy[r] - new_drones_energy[r]
     
     #If one zone has extra energy (and some others have too low)
     #Temporary put energy level of the robot the exact number of cells in its zone (or its proportionnate share if more of one robot in the zone)
+
+    print("Zones are "+str(drones_zones_label))
+    print(drones_energy)
+    print(drones_energy_new_cells)
+    print(zones_nb_cells)
+    print(zones_energy_available)
+    print("Comparaison")
+    print(drones_energy)
+    print(drones_energy_extra)
+    print(new_drones_energy)
+    input()
+    return True, new_drones_energy, drones_energy_extra, drones_energy
 
 
 
@@ -899,7 +974,7 @@ def CheckIfDisjointed(rows, cols, obstacles_positions, dronesNo, initial_positio
 
     #if robot has enough energy to gain, create new instance with new energy and new location
 
-    return
+
 
 
 def CheckIfDisjointed2() :
@@ -916,7 +991,11 @@ def CheckIfDisjointed2() :
 
 
 if __name__ == '__main__':
-    nx, ny, dronesNo, initial_positions, obs_pos, drones_energy = generate_instance_initial_random(20,20,5)
+    nx, ny, dronesNo, initial_positions, obs_pos, drones_energy = generate_instance_initial_random(25,25,5)
+    #nx, ny, dronesNo, initial_positions, obs_pos, drones_energy = generate_instance_initial_random(25,25,3)
+    nx, ny, dronesNo, initial_positions, obs_pos, drones_energy = generate_instance_initial_random(15,15,3)
+
+
 
     # nx, ny = 16, 8 
     # initial_positions =  [38, 54, 47]
@@ -934,9 +1013,22 @@ if __name__ == '__main__':
     DARP_instance_obj = DARP_instance(nx, ny, initial_positions, obs_pos, 1 )
     input()
     #Factors value 
-    DARP_instance_obj.drones_energy_rates = [0.50,0.50,1.50,0.50,1.50]
-    DARP_instance_obj.drones_energy_rates = [1.50,1.50,0.50,1.50,0.50]
-    DARP_instance_obj.drones_generation_factors = [80,80,80,80,80 ]
+    DARP_instance_obj.drones_energy_rates = [0.10,0.10,2.70,0.10,2.70]
+    #DARP_instance_obj.drones_energy_rates = [1.50,1.50,0.50,1.50,0.50]
+    # DARP_instance_obj.drones_generation_factors = [80,80,80,80,80 ]
+    # DARP_instance_obj.drones_generation_factors = [60,60,60,60,60 ]
+    # DARP_instance_obj.drones_generation_factors = [100,100,100,100,100 ]
+    DARP_instance_obj.drones_generation_factors = [120] * dronesNo #bon parametre pour 3 
+    DARP_instance_obj.drones_generation_factors = [80] * dronesNo 
+    DARP_instance_obj.drones_generation_factors = [50] * dronesNo 
+
+    # DARP_instance_obj.drones_energy_rates = [1.50,1.50,0.50]
+    #DARP_instance_obj.drones_energy_rates = [1.50,0.40,0.40] #bon parametre pour 3 
+    # DARP_instance_obj.drones_generation_factors = [160,160,160]
+    
+
+
+
     DARP_instance_obj.energy_level = drones_energy
     DARP_instance_obj.createInitialStep()
     #DARP_instance_obj.createInitialStepFromData()
@@ -950,14 +1042,29 @@ if __name__ == '__main__':
     i=0
     while True : 
         print("NEW STEP "+str(i+1))
+        forced_disjoint = False
         input()
         performed_paths = DARP_instance_obj.generateNewStep()
 
         #DARP_instance_obj.DARP_steps[-1].drones_energy = [80.2, 80.2, 0]
         DARP_instance_obj.PreProcessSolveStep()
-    
-        DARP_instance_obj.finalize_step(vis_real_time=False)
 
+        #VERIFICATION OF DISJOINTNESS
+        print("CHECK DISJOINTED")
+        Disjoint_results = CheckIfDisjointed(nx,ny, (DARP_instance_obj.DARP_steps[-1].obstacle_pos + DARP_instance_obj.DARP_steps[-1].full_covered_cells_encoded)  , len(DARP_instance_obj.start_positions) , DARP_instance_obj.DARP_steps[-1].current_position, DARP_instance_obj.DARP_steps[-1].drones_energy, DARP_instance_obj.DARP_steps[-1].pre_covered_cells  )
+        print("END DISJOINTED VERIFICATION "+str(Disjoint_results[0]))
+
+        if Disjoint_results[0] == True : 
+            DARP_instance_obj.DARP_steps[-1].drones_energy = Disjoint_results[1]
+            drones_extra_energy = Disjoint_results[2]
+            drones_old_energy = Disjoint_results[3]
+            forced_disjoint = True
+        #END VERIFICATION
+
+    
+        DARP_instance_obj.finalize_step(vis_real_time=False, forced_disjoint = forced_disjoint)
+        if Disjoint_results[0] == True : 
+            DARP_instance_obj.DARP_steps[-1].drones_energy = drones_old_energy
         cpp_string = []
 
         # for r in range(dronesNo) : 
@@ -970,7 +1077,9 @@ if __name__ == '__main__':
         #exit(1)
 
     
-                
+#GENERAL NOTES : 
+# WHEN GENERATE NEW STEPS ATTENTION AU -1   
+# #Correction done in rejection taking into account pre covered cells             
 
 #path = [(22, 24, 23, 24), (23, 24, 24, 24), (24, 24, 25, 24), (25, 24, 26, 24), (26, 24, 27, 24), (27, 24, 28, 24), (28, 24, 29, 24), (29, 24, 30, 24), (30, 24, 31, 24), (31, 24, 32, 24), (32, 24, 33, 24), (33, 24, 34, 24), (34, 24, 35, 24), (35, 24, 36, 24), (36, 24, 37, 24), (37, 24, 38, 24), (38, 24, 39, 24), (39, 24, 40, 24), (40, 24, 41, 24), (41, 24, 42, 24), (42, 24, 43, 24), (43, 24, 44, 24), (44, 24, 45, 24), (45, 24, 46, 24), (46, 24, 47, 24), (47, 24, 48, 24), (48, 24, 49, 24), (49, 24, 50, 24), (50, 24, 51, 24), (51, 24, 52, 24), (52, 24, 53, 24), (53, 24, 54, 24), (54, 24, 55, 24), (55, 24, 56, 24), (56, 24, 57, 24), (57, 24, 58, 24), (58, 24, 59, 24), (59, 24, 60, 24), (60, 24, 61, 24), (61, 24, 62, 24), (62, 24, 62, 23), (62, 23, 61, 23), (61, 23, 60, 23), (60, 23, 60, 22), (60, 22, 61, 22), (61, 22, 62, 22), (62, 22, 62, 21), (62, 21, 61, 21), (61, 21, 60, 21), (60, 21, 60, 20), (60, 20, 61, 20), (61, 20, 62, 20), (62, 20, 62, 19), (62, 19, 61, 19), (61, 19, 60, 19), (60, 19, 60, 18), (60, 18, 61, 18), (61, 18, 62, 18), (62, 18, 62, 17), (62, 17, 61, 17), (61, 17, 60, 17), (60, 17, 60, 16), (60, 16, 61, 16), (61, 16, 62, 16), (62, 16, 62, 15), (62, 15, 61, 15), (61, 15, 60, 15), (60, 15, 60, 14), (60, 14, 61, 14), (61, 14, 62, 14), (62, 14, 62, 13), (62, 13, 61, 13), (61, 13, 60, 13), (60, 13, 60, 12), (60, 12, 61, 12), (61, 12, 62, 12), (62, 12, 62, 11), (62, 11, 61, 11), (61, 11, 60, 11), (60, 11, 60, 10), (60, 10, 61, 10), (61, 10, 62, 10), (62, 10, 62, 9), (62, 9, 61, 9), (61, 9, 60, 9), (60, 9, 60, 8), (60, 8, 61, 8), (61, 8, 62, 8), (62, 8, 62, 7), (62, 7, 62, 6), (62, 6, 63, 6), (63, 6, 63, 7), (63, 7, 63, 8), (63, 8, 63, 9), (63, 9, 63, 10), (63, 10, 63, 11), (63, 11, 63, 12), (63, 12, 63, 13), (63, 13, 63, 14), (63, 14, 63, 15), (63, 15, 63, 16), (63, 16, 63, 17), (63, 17, 63, 18), (63, 18, 63, 19), (63, 19, 63, 20), (63, 20, 63, 21), (63, 21, 63, 22), (63, 22, 63, 23), (63, 23, 63, 24), (63, 24, 63, 25), (63, 25, 63, 26), (63, 26, 63, 27), (63, 27, 63, 28), (63, 28, 63, 29), (63, 29, 63, 30), (63, 30, 63, 31), (63, 31, 62, 31), (62, 31, 61, 31), (61, 31, 60, 31), (60, 31, 60, 30), (60, 30, 61, 30), (61, 30, 62, 30), (62, 30, 62, 29), (62, 29, 61, 29), (61, 29, 60, 29), (60, 29, 60, 28), (60, 28, 61, 28), (61, 28, 62, 28), (62, 28, 62, 27), (62, 27, 61, 27), (61, 27, 60, 27), (60, 27, 60, 26), (60, 26, 61, 26), (61, 26, 62, 26), (62, 26, 62, 25), (62, 25, 61, 25), (61, 25, 60, 25), (60, 25, 59, 25), (59, 25, 58, 25), (58, 25, 57, 25), (57, 25, 56, 25), (56, 25, 55, 25), (55, 25, 54, 25), (54, 25, 53, 25), (53, 25, 52, 25), (52, 25, 51, 25), (51, 25, 50, 25), (50, 25, 49, 25), (49, 25, 48, 25), (48, 25, 47, 25), (47, 25, 46, 25), (46, 25, 45, 25), (45, 25, 44, 25), (44, 25, 43, 25), (43, 25, 42, 25), (42, 25, 41, 25), (41, 25, 40, 25), (40, 25, 39, 25), (39, 25, 38, 25), (38, 25, 37, 25), (37, 25, 36, 25), (36, 25, 35, 25), (35, 25, 34, 25), (34, 25, 33, 25), (33, 25, 32, 25), (32, 25, 31, 25), (31, 25, 30, 25), (30, 25, 29, 25), (29, 25, 28, 25), (28, 25, 27, 25), (27, 25, 26, 25), (26, 25, 25, 25), (25, 25, 24, 25), (24, 25, 23, 25), (23, 25, 22, 25), (22, 25, 22, 24)]
 #[(22, 24), (62, 23), (61, 23), (60, 22), (61, 22), (62, 21), (61, 21), (60, 20), (61, 20), (62, 19), (61, 19), (60, 18), (61, 18), (62, 17), (61, 17), (60, 16), (61, 16), (62, 15), (61, 15), (60, 14), (61, 14), (62, 13), (61, 13), (60, 12), (61, 12), (62, 11), (61, 11), (60, 10), (61, 10), (62, 9), (61, 9), (60, 8), (61, 8), (62, 7), (63, 6), (63, 7), (62, 31), (60, 30), (61, 30), (62, 29), (61, 29), (60, 28), (61, 28), (62, 27), (61, 27), (60, 26), (61, 26), (62, 25), (61, 25), (22, 24)]
