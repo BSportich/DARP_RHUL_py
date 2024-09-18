@@ -1019,8 +1019,8 @@ if __name__ == '__main__':
     # DARP_instance_obj.drones_generation_factors = [60,60,60,60,60 ]
     # DARP_instance_obj.drones_generation_factors = [100,100,100,100,100 ]
     DARP_instance_obj.drones_generation_factors = [120] * dronesNo #bon parametre pour 3 
-    DARP_instance_obj.drones_generation_factors = [80] * dronesNo 
-    DARP_instance_obj.drones_generation_factors = [50] * dronesNo 
+    #DARP_instance_obj.drones_generation_factors = [80] * dronesNo 
+    #DARP_instance_obj.drones_generation_factors = [50] * dronesNo 
 
     # DARP_instance_obj.drones_energy_rates = [1.50,1.50,0.50]
     #DARP_instance_obj.drones_energy_rates = [1.50,0.40,0.40] #bon parametre pour 3 
