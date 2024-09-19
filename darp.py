@@ -104,6 +104,29 @@ def CalcConnectedMultiplier(rows, cols, dist1, dist2, CCvariation):
 
     return returnM
 
+def ModifBinaryRobot(BinaryRobot, BinaryNonRobot, pre_covered_cells):
+    NewBinary = np.copy(BinaryRobot)
+    NewNonBinary = np.copy(BinaryNonRobot)
+    for cell in pre_covered_cells :
+        if NewBinary[ cell[0] ][ cell[1] ] ==1 : 
+            print("Binary corrected")
+            NewBinary[ cell[0] ][ cell[1] ] = 0
+            NewNonBinary [ cell[0] ][ cell[1] ] = 1
+    
+    return NewBinary, NewNonBinary
+
+def correction_connectedMultiplier(rows, cols, ConnectedMultiplier, connectivity_map, initial_position):
+    print(connectivity_map)
+    print(initial_position)
+    init_i = initial_position[0]
+    init_j = initial_position[1]
+    for i in range(rows) : 
+        for j in range(cols) : 
+            if connectivity_map[i][j] != connectivity_map[init_i][init_j] : 
+                ConnectedMultiplier[i][j] = 10000000000000000
+    return ConnectedMultiplier
+
+
 
 class DARP:
     def __init__(self, nx, ny, notEqualPortions, given_initial_positions, given_portions, obstacles_positions, visualization ,
@@ -116,7 +139,7 @@ class DARP:
                 opt_threshold = "C", 
                 valuation_grid = [],
                 #Ben_modif_end
-                 MaxIter=100000, CCvariation=0.04, #normal value 0.01
+                 MaxIter=100000, CCvariation=0.01, #normal value 0.01
                  randomLevel=0.0001, dcells=2,
                  printok = False,
                  importance=False,
@@ -315,7 +338,12 @@ class DARP:
                 sys.exit(6)
             else : 
                 print("Disconnected region mode : FORCED ")
+                self.printok = True
+                self.debug_prints = True
                 input()
+
+        self.connectivity_map = labels_im
+        self.connectivity_map_nums = num_labels
 
         #ben_modif
         if self.pre_covered_cells_number > 0 : 
@@ -412,12 +440,23 @@ class DARP:
                         #Ben_modif ;;;;;;;;;;; In the original code, BinaryRobot are computed here, so this line is not necessary anymore
                         #BinaryRobot, BinaryNonRobot = constructBinaryImages(labels_im, self.initial_positions[r], self.rows, self.cols)
                         #Ben_modif_end
+                        
+                        #Test correction for connectivity (part 1)
+                        # old_binary_robot, old_binary_non_robot = BinaryRobot, BinaryNonRobot
+                        # BinaryRobot, BinaryNonRobot = ModifBinaryRobot(BinaryRobot, BinaryNonRobot, self.pre_covered_cells[r])
 
                         ConnectedMultiplier = CalcConnectedMultiplier(self.rows, self.cols,
                                                                       self.NormalizedEuclideanDistanceBinary(True, BinaryRobot),
                                                                       self.NormalizedEuclideanDistanceBinary(False, BinaryNonRobot), self.CCvariation)
+                        
+                        #Tentative correction instable 
+                        ConnectedMultiplier = correction_connectedMultiplier(self.rows, self.cols, ConnectedMultiplier, self.connectivity_map, self.initial_positions[r])
                     ConnectedMultiplierList[r, :, :] = ConnectedMultiplier
                     
+                    #Test correction for connectivity (part 2)
+                    # BinaryRobot = old_binary_robot
+                    # BinaryNonRobot = old_binary_non_robot
+
                     #Ben_modif
                     #In the energy case, the thresholds are computed differently
                     if self.DARP_energy == True : 
@@ -448,13 +487,18 @@ class DARP:
                     #print(self.effective_size_portions)
                     print("DESIRABLE ASSIGN "+str(self.DesireableAssign))
                     print("CELLS ASSIGNED : "+str(self.ArrayOfElements))
+                    nb_p_c = []
+                    #print(self.pre_covered_cells)
+                    for u in range(self.droneNo) : 
+                        nb_p_c.append( len(self.pre_covered_cells[u]) )
+
+                    print("NB PRE COVERED CELLS "+str(nb_p_c))
                     print("THRESHOLDS : " +str(self.robots_thresholds))
                     #print(self.opt_ass)
                     print("CURRENT SHARE IS "+str(plainErrors))
                     #print("SUM OF PLAIN ERRORS "+str(np.sum(plainErrors)))
                     print("ERROR IS "+str(divFairError))
                     #print(np.sum(self.ArrayOfElements))
-                    # print(self.pre_covered_cells)
                     print("TOTAL CELLS AVAILABLE "+str(self.EffectiveSize))
                     # print(self.ArrayOfElements)
                     #print(criterionMatrix)
@@ -603,12 +647,16 @@ class DARP:
             #USABLE PRINTS
             # print("Error")
                 print("PRE COVERED CELLS "+str(len(self.pre_covered_cells[r])))
-                print( "VALUE TESTED FOR GOAL : "+str(np.absolute(self.DesireableAssign[r] - self.ArrayOfElements[r] - len(self.pre_covered_cells[r])) ))
+                print( "VALUE TESTED FOR GOAL : "+str(np.absolute(self.DesireableAssign[r] - self.ArrayOfElements[r] + len(self.pre_covered_cells[r])) ))
 
             #print(self.DesireableAssign)
             #print(self.ArrayOfElements)
             #print(thresh)
-            if np.absolute(self.DesireableAssign[r] - self.ArrayOfElements[r] + len(self.pre_covered_cells[r])) > thresh or not connectedRobotRegions[r]:
+            
+            #if np.absolute(self.DesireableAssign[r] - self.ArrayOfElements[r] + len(self.pre_covered_cells[r])) > thresh or not connectedRobotRegions[r]: #ORIGINAL WORKING
+            #ABSOLUTE TEST OMG : 
+            if np.absolute(self.DesireableAssign[r] - self.ArrayOfElements[r] ) > thresh or not connectedRobotRegions[r]: #ORIGINAL WORKING
+
             #Ben_modif_end
                 return False
         return True
@@ -628,7 +676,8 @@ class DARP:
                 
                 # print(" checkpoint 2 ")
                 # print("HERE" + str(pre_covered_cells_count))
-                if np.floor(self.robots_thresholds[r][0]*self.EffectiveSize) - np.sum(self.BinaryRobotMainRegion[r]) - pre_covered_cells_count  > 0 :
+                #ORIGINAL : if np.floor(self.robots_thresholds[r][0]*self.EffectiveSize) - np.sum(self.BinaryRobotMainRegion[r]) - pre_covered_cells_count  > 0 :
+                if np.floor(self.robots_thresholds[r][0]*self.EffectiveSize) - np.sum(self.BinaryRobotMainRegion[r])  > 0 : #ABSOLUTE TEST OMG
                     return False
 
         # print(" checkpoint 3 ")
@@ -768,6 +817,7 @@ class DARP:
                     #Total sum of portion assigments on all drones equals 1 (Normalized = Option 1 )
                     opt_ass[r] = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - (len(self.pre_covered_cells[r]) *0.5 ) ) / ( (sum(self.drones_energy) / self.cell_coverage_energy_cost) -  ( sum(len(x) for x in self.pre_covered_cells) *0.5))
                     opt_ass[r] =sub_energy[r] / ( sum(sub_energy))
+                    opt_ass[r] =sub_energy[r] / ( sum(self.drones_energy)) #OMG ABSOLUTE TEST
                     self.IsNormalized = True 
                     print("FORCED NORMALIZATION")
                 ##DARP core algorithm can converge (and potentially faster) if sum of aimed values is < 1 : 
@@ -779,6 +829,8 @@ class DARP:
                     #Option 1 : Normalized
                     if self.opt_ass_type == 1 : 
                         opt_ass[r] = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - (len(self.pre_covered_cells[r]) *0.5 ) ) / ( (sum(self.drones_energy) / self.cell_coverage_energy_cost) -  ( sum(len(x) for x in self.pre_covered_cells) *0.5 )) 
+                        opt_ass[r] =sub_energy[r] / ( sum(sub_energy))
+                        opt_ass[r] =sub_energy[r] / ( sum(self.drones_energy)) #OMG ABSOLUTE TEST
                         self.IsNormalized = True 
 
                     #Option 2 : non normalized
@@ -790,6 +842,14 @@ class DARP:
                 opt_ass[r] = 0
         if(self.printok) : print("Optimal assignment is ", opt_ass)
         if(self.printok) : print(np.sum(opt_ass))
+
+        #OMG ABSOLUTE TEST
+        if sum(opt_ass) > 0.99 :
+            self.IsNormalized = True
+        else : 
+            self.IsNormalized = False
+        #END
+
         return opt_ass
 
 

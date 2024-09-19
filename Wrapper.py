@@ -127,6 +127,7 @@ class DARP_instance :
         self.cost_one_cell = cost_one_cell
         self.dronesNo = len(start_positions)
         self.start_positions = start_positions
+        self.drones_finished = [False] * dronesNo
 
 
         #information about the DB
@@ -263,16 +264,38 @@ class DARP_instance :
             else : 
                 drones_pos.append( self.DARP_steps[-1].current_position[r] )
 
+                print("GENERATE MORE THAN AVAILABLE")
+                input()
                 print(self.DARP_steps[-1].step)
-                performed_paths.append( [] )
-                robots_offsets.append(  None  ) 
+                #performed_paths.append( [] )
+                #robots_offsets.append(  None  ) 
 
                 if self.DARP_steps[-1].step == 0 : 
                     point = ( (self.start_positions[r] // self.cols) * 2 , (self.start_positions[r] % self.cols) *2 )
                     print( point )
                     drones_pos_precise.append( point ) 
                 else : 
-                    drones_pos_precise.append( self.DARP_steps[-1].current_position_precise[r]) 
+                    #drones_pos_precise.append( self.DARP_steps[-1].current_position_precise[r]) 
+                    
+                    self.drones_finished[r] = True
+                    new_pos = self.DARP_steps[-1].future_paths[r][-1][2:]
+                    performed_paths.append( self.DARP_steps[-1].future_paths[r][:] )
+                    temp_value_path = self.DARP_steps[-1].future_paths[r][:]
+                    r_offset = computeOffset( temp_value_path , self.cols )
+                    robots_offsets.append(r_offset)
+
+                    #Transform coordinates
+                    x, y = new_pos
+                    drones_pos_precise.append( (x,y) )
+                    #print("NEW POS "+str(new_pos))
+                    x , y = transformCoordinates(x,y)
+                    #print("NEW POS "+str( (x,y) ))
+                    new_pos_one = x * self.cols + y
+                    #print("NEW POS "+str(new_pos_one))
+
+                    drones_pos.append( new_pos_one )
+
+
             
 
         #blabla
@@ -841,7 +864,7 @@ def OneInstanceWithBaseline(nb_step, size, nb_robots) :
 
     return
 
-def CheckIfDisjointed(rows, cols, obstacles_positions, dronesNo, initial_positions, drones_energy, pre_covered_cells) : 
+def CheckIfDisjointed(rows, cols, obstacles_positions, dronesNo, initial_positions, drones_energy, pre_covered_cells, isfinished) : 
 
     Answer = False
     #check
@@ -897,15 +920,25 @@ def CheckIfDisjointed(rows, cols, obstacles_positions, dronesNo, initial_positio
 
         label_drone = labels_im[x][y]
         print("Label drone is "+str(label_drone))
-        drones_zones_tab.append( label_drone )
-        if label_drone not in drones_zones_label : 
-            drones_zones_label.append( label_drone )
-        number_cells = np.count_nonzero(label_drone == labels_im)
-        print("number cells is "+str(number_cells))
-        zones_nb_cells[ label_drone ] = number_cells
-        print(number_cells)
+        if isfinished[drone] == True : 
+            print("Robot not considered : coverage finished")
+            drones_zones_tab.append( label_drone )
+            zones_nb_cells[ label_drone ] = 0
+            if label_drone not in drones_zones_label : 
+                drones_zones_label.append( label_drone )
+        else : 
+            drones_zones_tab.append( label_drone )
+            if label_drone not in drones_zones_label : 
+                drones_zones_label.append( label_drone )
+            number_cells = np.count_nonzero(label_drone == labels_im)
+            print("number cells is "+str(number_cells))
+            zones_nb_cells[ label_drone ] = number_cells
+            print(number_cells)
+
     print(zones_nb_cells)
-    
+    print("ZONES HERE ")
+    print(labels_im)
+
     zones_drones = {}
     for zone in zones_nb_cells.keys() :
         zones_energy_available[zone] = 0
@@ -925,13 +958,22 @@ def CheckIfDisjointed(rows, cols, obstacles_positions, dronesNo, initial_positio
             zone_i = zone_i + 1
         else : 
             zones_boolean[zone] = False
-
+    print("check")
+    print(zones_boolean)
+    print(zone_i)
+    print(drones_zones_label)
+    print(len(drones_zones_label))
     #if unconnected zones have unbalanced energy
-    if zone_i !=0 and zone_i!= len(drones_zones_label) : 
+    if zone_i !=0 and zone_i!= (len(drones_zones_label)) : 
         for zone in zones_nb_cells.keys() : 
-            if zones_boolean == True : 
+            if zones_boolean[zone] == True : 
 
                 for r in zones_drones[zone] : 
+                    print("print debug disjoint check")
+                    print(r)
+                    print(zone)
+                    print(zones_nb_cells[zone])
+                    print((drones_energy_new_cells[r] / zones_energy_available[zone] ))
                     new_drones_energy[r] = round((drones_energy_new_cells[r] / zones_energy_available[zone] ) * zones_nb_cells[zone] ) + (len(pre_covered_cells[r]) *0.5 )
                     drones_energy_extra[r] = drones_energy[r] - new_drones_energy[r]
     
@@ -942,6 +984,7 @@ def CheckIfDisjointed(rows, cols, obstacles_positions, dronesNo, initial_positio
     print(drones_energy)
     print(drones_energy_new_cells)
     print(zones_nb_cells)
+    print(zones_drones)
     print(zones_energy_available)
     print("Comparaison")
     print(drones_energy)
@@ -1041,6 +1084,7 @@ if __name__ == '__main__':
     # exit(1)
     i=0
     while True : 
+        vis_real_time= False
         print("NEW STEP "+str(i+1))
         forced_disjoint = False
         input()
@@ -1051,7 +1095,7 @@ if __name__ == '__main__':
 
         #VERIFICATION OF DISJOINTNESS
         print("CHECK DISJOINTED")
-        Disjoint_results = CheckIfDisjointed(nx,ny, (DARP_instance_obj.DARP_steps[-1].obstacle_pos + DARP_instance_obj.DARP_steps[-1].full_covered_cells_encoded)  , len(DARP_instance_obj.start_positions) , DARP_instance_obj.DARP_steps[-1].current_position, DARP_instance_obj.DARP_steps[-1].drones_energy, DARP_instance_obj.DARP_steps[-1].pre_covered_cells  )
+        Disjoint_results = CheckIfDisjointed(nx,ny, (DARP_instance_obj.DARP_steps[-1].obstacle_pos + DARP_instance_obj.DARP_steps[-1].full_covered_cells_encoded)  , len(DARP_instance_obj.start_positions) , DARP_instance_obj.DARP_steps[-1].current_position, DARP_instance_obj.DARP_steps[-1].drones_energy, DARP_instance_obj.DARP_steps[-1].pre_covered_cells, DARP_instance_obj.drones_finished  )
         print("END DISJOINTED VERIFICATION "+str(Disjoint_results[0]))
 
         if Disjoint_results[0] == True : 
@@ -1059,14 +1103,14 @@ if __name__ == '__main__':
             drones_extra_energy = Disjoint_results[2]
             drones_old_energy = Disjoint_results[3]
             forced_disjoint = True
+            vis_real_time = True
         #END VERIFICATION
 
     
-        DARP_instance_obj.finalize_step(vis_real_time=False, forced_disjoint = forced_disjoint)
+        DARP_instance_obj.finalize_step(vis_real_time=vis_real_time, forced_disjoint = forced_disjoint)
         if Disjoint_results[0] == True : 
             DARP_instance_obj.DARP_steps[-1].drones_energy = drones_old_energy
         cpp_string = []
-
         # for r in range(dronesNo) : 
         #     cpp_string.append(    "p_"+str(int(DARP_instance_obj.DARP_steps[-1].current_position_precise[r][0]))+"_"+str( int(DARP_instance_obj.DARP_steps[-1].current_position_precise[r][1]))   )
 
