@@ -143,7 +143,8 @@ class DARP:
                  randomLevel=0.0001, dcells=2,
                  printok = False,
                  importance=False,
-                 forced_disjoint = False):
+                 forced_disjoint = False,
+                 isFinished = []):
 
         self.rows = nx
         self.cols = ny
@@ -163,8 +164,16 @@ class DARP:
         self.importance = importance
         self.notEqualPortions = notEqualPortions
 
-        
-
+        #FINISHED PROCEDURE 
+        if isFinished == [] : 
+            print("finished ?")
+            self.isFinished = [False] * len(drones_energy)
+        else : 
+            print("finished ! ")
+            print(isFinished)
+            self.isFinished = isFinished
+        input()
+        print("INITIAL POSITIONS ARE "+str(given_initial_positions))
         self.initial_positions, self.obstacles_positions, self.portions = self.sanity_check(given_initial_positions, given_portions, obstacles_positions, notEqualPortions)
         self.droneNo = len(self.initial_positions)
         #Ben_modif_end
@@ -181,8 +190,20 @@ class DARP:
             else : 
                 self.pre_covered_cells = []
                 for r in range(self.droneNo) : 
+
+                    #FINISHED PROCEDURE
+                    print(self.isFinished)
+                    print(r)
+                    print(range(self.droneNo))
+                    print(self.droneNo)
+                    print(self.initial_positions)
+                    if self.isFinished[r] == True :
+                    
+                        self.drones_energy[r] = 0
+                    
                     temp_pre_covered_cells_r = []
 
+                    print(pre_covered_cells)
                     for cell in pre_covered_cells[r] : 
                         temp_pre_covered_cells_r.append( (cell // self.cols, cell % self.cols) ) 
 
@@ -279,12 +300,21 @@ class DARP:
                 sys.exit(2)
             obstacles_positions.append((obstacle // self.cols, obstacle % self.cols))
 
-
+        #for i in range(len(initial_positions)) : 
+        i=0
         for position in initial_positions:
+            #position = initial_positions[i]
             for obstacle in obstacles_positions:
                 if position[0] == obstacle[0] and position[1] == obstacle[1]:
                     print("Initial positions should not be on obstacles")
-                    sys.exit(5)
+                    if self.isFinished[i] == False : 
+                        sys.exit(5)
+                    else : 
+                        #FINISHED PROCEDURE 
+                        print("Robot "+str(i)+" is finished")
+                        input()
+                        #self.drones_energy[i] = 0
+            i=i+1
 
         portions = []
         if notEqualPortions:
@@ -353,6 +383,8 @@ class DARP:
                     # print( -(r+1) * 100)
                     #if cell[0] != self.initial_positions[r][0] and cell[1] != self.initial_positions[r][1]: #INSTABLE ?
                     GridEnv[ cell[0] ][ cell[1] ] = -(r+1) * 100
+                    if self.isFinished[r] == True : 
+                        GridEnv[ cell[0] ][ cell[1] ] = -1
 
             # print("PRE COVERED CELLS "+str(GridEnv))
 
@@ -361,8 +393,9 @@ class DARP:
         
         # initial robot tiles will have their array.index as value
         for idx, robot in enumerate(self.initial_positions):
-            GridEnv[robot] = idx
-            self.A[robot] = idx
+            if self.isFinished[idx] == False : 
+                GridEnv[robot] = idx
+                self.A[robot] = idx
 
         return GridEnv
 
@@ -419,7 +452,7 @@ class DARP:
 
                         #Only enters here in case of problem : 
                         #The main robot region should always be smaller than the total of cells assigned to this robot (all the cells that are not connected to the main components are not here)
-                        if np.sum(self.BinaryRobotMainRegion[r]) > self.ArrayOfElements[r] : 
+                        if np.sum(self.BinaryRobotMainRegion[r]) > self.ArrayOfElements[r] and self.isFinished == False : 
                             print("MAJOR ERROR")
                             print(np.sum(self.BinaryRobotMainRegion[r]))
                             print(self.ArrayOfElements[r])
@@ -483,6 +516,7 @@ class DARP:
                 if self.debug_prints == True : 
                     self.printok = True
                     print("Convergence")
+                    print(self.isFinished)
                     print("OPT ASS % "+str(self.opt_ass))
                     #print(self.effective_size_portions)
                     print("DESIRABLE ASSIGN "+str(self.DesireableAssign))
@@ -597,6 +631,10 @@ class DARP:
                             self.generateRandomMatrix(),
                             self.MetricMatrix[r],
                             ConnectedMultiplierList[r, :, :])
+                    
+                    if self.drones_energy[r] == 0 or self.isFinished[r] == True : 
+                        self.MetricMatrix[r] = np.full((self.rows, self.cols), float('inf'))
+                        print("Robot "+str(r)+" is finished : 0 cells should be assigned")
 
                 iteration += 1
                 if self.visualization:
@@ -739,8 +777,9 @@ class DARP:
                     AllDistances[r, x, y] = euclidian_distance_points2d(np.array(self.initial_positions[r]), np.array((x, y))) # E!
                     
                     #Ben change
-                    if self.drones_energy[r] == 0 : 
+                    if self.drones_energy[r] == 0 or self.isFinished[r] == True : 
                          AllDistances[r,x,y] = float('inf')
+                         print("Robot "+str(r)+" is finished : 0 cells should be assigned")
 
 
 
@@ -840,6 +879,12 @@ class DARP:
             else : 
 
                 opt_ass[r] = 0
+
+            #FINISHED PROCEDURE 
+            if self.isFinished[r] == True : 
+                print("ROBOT IS FINISHED "+str(r))
+                opt_ass[r] = 0
+
         if(self.printok) : print("Optimal assignment is ", opt_ass)
         if(self.printok) : print(np.sum(opt_ass))
 
@@ -891,6 +936,7 @@ class DARP:
                 #    HigherThreshold = (self.EffectiveSize - self.termThr) / self.EffectiveSize
                 #elif self.opt_threshold == "C" : 
                 temp_value = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - (len(self.pre_covered_cells[r]) *0.5 ) ) / ( (sum(self.drones_energy) / self.cell_coverage_energy_cost) -  ( sum(len(x) for x in self.pre_covered_cells) *0.5 )) 
+                temp_value = ( (self.opt_ass[r] * self.EffectiveSize) + 2* self.termThr) / self.EffectiveSize
                 HigherThreshold = temp_value
 
                 if LowerThreshold == 0 :
@@ -901,6 +947,9 @@ class DARP:
                 if self.success == False : 
                     print("TERMTHR WAS INCREASED WHILE TARGET INTERVAL WAS REALLY LARGE")
                     print("LIKELY NO SOLUTION TO BE FOUND")
+            if self.isFinished[r] == True :
+                LowerThreshold = 0
+                HigherThreshold = 1
             
             print("THRESHOLDS FOR ROBOT "+str(r)+" "+str(LowerThreshold)+" "+str(HigherThreshold))
             self.robots_thresholds .append( (LowerThreshold, HigherThreshold))

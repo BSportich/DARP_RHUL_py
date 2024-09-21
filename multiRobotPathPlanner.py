@@ -293,7 +293,7 @@ def createValuationGrid(rows, cols, obstacle_list):
 class Energy_MRPP(DARP):
     def __init__(self, nx, ny, notEqualPortions, initial_positions, portions,
                  obs_pos, drones_energy, visualization, pre_covered_cells = [], MaxIter=80000, CCvariation=0.01,
-                 randomLevel=0.0001, dcells=2, importance=False, forced_disjoint = False):
+                 randomLevel=0.0001, dcells=2, importance=False, forced_disjoint = False, drones_finished = []):
 
         self.start_time = time.time()
         # Initialize DARP
@@ -301,7 +301,7 @@ class Energy_MRPP(DARP):
                                     DARP_energy=True, pre_covered_cells = pre_covered_cells, drones_energy = drones_energy, 
                                   MaxIter=MaxIter, CCvariation=CCvariation,
                                   randomLevel=randomLevel, dcells=dcells,
-                                  importance=importance, forced_disjoint = forced_disjoint)
+                                  importance=importance, forced_disjoint = forced_disjoint, isFinished= drones_finished)
 
 
     def divide(self) :

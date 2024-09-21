@@ -53,7 +53,7 @@ class DARP_step :
         self.drones_generation_factors = drones_generation_factors
 
 
-    def solve_step(self, nx, ny, visualization , forced_disjoint = False) : 
+    def solve_step(self, nx, ny, visualization , forced_disjoint = False, drones_finished = []) : 
 
         # pre_covered_cells_encoded = []
         # full_covered_cells_encoded = [] 
@@ -79,9 +79,9 @@ class DARP_step :
                 
         # self.pre_covered_cells_encoded = pre_covered_cells_encoded
         # self.full_covered_cells_encoded = full_covered_cells_encoded
-             
+        print("DRONES FINISHED "+str(drones_finished))
 
-        self.MRPP = Energy_MRPP(nx, ny, True, self.current_position, np.ones((1,len(self.drones_energy))) , (self.obstacle_pos + self.full_covered_cells_encoded), self.drones_energy , visualization, pre_covered_cells= self.pre_covered_cells_encoded, forced_disjoint = forced_disjoint )
+        self.MRPP = Energy_MRPP(nx, ny, True, self.current_position, np.ones((1,len(self.drones_energy))) , (self.obstacle_pos + self.full_covered_cells_encoded), self.drones_energy , visualization, pre_covered_cells= self.pre_covered_cells_encoded, forced_disjoint = forced_disjoint, drones_finished = drones_finished )
         #self.MRPP = Energy_MRPP(nx, ny, True, self.current_position, np.ones((1,len(self.drones_energy))) , self.obstacle_pos, self.drones_energy , visualization )
         
         self.DARP_results, self.DARP_sucess, self.iterations = self.MRPP.divide()
@@ -193,7 +193,7 @@ class DARP_instance :
         
         for r in range(self.dronesNo) : 
 
-            if self.DARP_steps[-1].drones_energy[r] > 0 : 
+            if self.DARP_steps[-1].drones_energy[r] > 0 and (self.DARP_steps[-1].drones_energy[r] - ( self.drones_energy_rates[r] * 0.25) > 0 ): 
 
                 factor = max( int(self.DARP_steps[-1].drones_energy[r]/ 3 ), 10 )
 
@@ -228,6 +228,8 @@ class DARP_instance :
             else : 
 
                 r_energy = 0
+                self.drones_finished[r] = True
+                #drones_pos.append( self.DARP_steps[-1].current_position[r] )
 
             #if r == 2 : 
             #    r_energy = 0 
@@ -262,7 +264,7 @@ class DARP_instance :
                 drones_pos.append( new_pos_one )
             
             else : 
-                drones_pos.append( self.DARP_steps[-1].current_position[r] )
+                #drones_pos.append( self.DARP_steps[-1].current_position[r] )
 
                 print("GENERATE MORE THAN AVAILABLE")
                 input()
@@ -276,24 +278,37 @@ class DARP_instance :
                     drones_pos_precise.append( point ) 
                 else : 
                     #drones_pos_precise.append( self.DARP_steps[-1].current_position_precise[r]) 
-                    
-                    self.drones_finished[r] = True
-                    new_pos = self.DARP_steps[-1].future_paths[r][-1][2:]
-                    performed_paths.append( self.DARP_steps[-1].future_paths[r][:] )
-                    temp_value_path = self.DARP_steps[-1].future_paths[r][:]
-                    r_offset = computeOffset( temp_value_path , self.cols )
-                    robots_offsets.append(r_offset)
+                    if r_energy == 0 :
+                        drones_pos.append( self.DARP_steps[-1].current_position[r] )
 
-                    #Transform coordinates
-                    x, y = new_pos
-                    drones_pos_precise.append( (x,y) )
-                    #print("NEW POS "+str(new_pos))
-                    x , y = transformCoordinates(x,y)
-                    #print("NEW POS "+str( (x,y) ))
-                    new_pos_one = x * self.cols + y
-                    #print("NEW POS "+str(new_pos_one))
+                        #new_pos = self.DARP_steps[-1].future_paths[r][0][:2]
+                        robots_offsets = self.DARP_steps[-2].robots_offsets 
+                        performed_paths.append( [])
 
-                    drones_pos.append( new_pos_one )
+                        x, y = self.DARP_steps[-1].current_position_precise[r]
+                        drones_pos_precise.append( (x,y) )
+
+
+
+                        
+                    else : 
+                        self.drones_finished[r] = True
+                        new_pos = self.DARP_steps[-1].future_paths[r][-1][2:]
+                        performed_paths.append( self.DARP_steps[-1].future_paths[r][:] )
+                        temp_value_path = self.DARP_steps[-1].future_paths[r][:]
+                        r_offset = computeOffset( temp_value_path , self.cols )
+                        robots_offsets.append(r_offset)
+
+                        #Transform coordinates
+                        x, y = new_pos
+                        drones_pos_precise.append( (x,y) )
+                        #print("NEW POS "+str(new_pos))
+                        x , y = transformCoordinates(x,y)
+                        #print("NEW POS "+str( (x,y) ))
+                        new_pos_one = x * self.cols + y
+                        #print("NEW POS "+str(new_pos_one))
+
+                        drones_pos.append( new_pos_one )
 
 
             
@@ -333,7 +348,7 @@ class DARP_instance :
 
         last_step = self.DARP_steps[-1]
         
-        darp_results, success, iteration = last_step.solve_step(self.rows, self.cols, vis, forced_disjoint = forced_disjoint)
+        darp_results, success, iteration = last_step.solve_step(self.rows, self.cols, vis, forced_disjoint = forced_disjoint, drones_finished = self.drones_finished)
 
         return darp_results
 
@@ -983,9 +998,9 @@ def CheckIfDisjointed(rows, cols, obstacles_positions, dronesNo, initial_positio
     print("Zones are "+str(drones_zones_label))
     print(drones_energy)
     print(drones_energy_new_cells)
-    print(zones_nb_cells)
-    print(zones_drones)
-    print(zones_energy_available)
+    print("Keys : label image ; value : number cells "+str(zones_nb_cells))
+    print("Keys : label image ; value : drone ID "+str(zones_drones))
+    print("Keys : label image ; value : energy available by zone "+str(zones_energy_available))
     print("Comparaison")
     print(drones_energy)
     print(drones_energy_extra)
@@ -1036,7 +1051,7 @@ def CheckIfDisjointed2() :
 if __name__ == '__main__':
     nx, ny, dronesNo, initial_positions, obs_pos, drones_energy = generate_instance_initial_random(25,25,5)
     #nx, ny, dronesNo, initial_positions, obs_pos, drones_energy = generate_instance_initial_random(25,25,3)
-    nx, ny, dronesNo, initial_positions, obs_pos, drones_energy = generate_instance_initial_random(15,15,3)
+    #nx, ny, dronesNo, initial_positions, obs_pos, drones_energy = generate_instance_initial_random(15,15,3)
 
 
 
@@ -1063,7 +1078,8 @@ if __name__ == '__main__':
     # DARP_instance_obj.drones_generation_factors = [100,100,100,100,100 ]
     DARP_instance_obj.drones_generation_factors = [120] * dronesNo #bon parametre pour 3 
     #DARP_instance_obj.drones_generation_factors = [80] * dronesNo 
-    #DARP_instance_obj.drones_generation_factors = [50] * dronesNo 
+    #DARP_instance_obj.drones_generation_factors = [50] * dronesNo #EXPERIENCE
+    #DARP_instance_obj.drones_generation_factors = [150] * dronesNo
 
     # DARP_instance_obj.drones_energy_rates = [1.50,1.50,0.50]
     #DARP_instance_obj.drones_energy_rates = [1.50,0.40,0.40] #bon parametre pour 3 
@@ -1095,6 +1111,7 @@ if __name__ == '__main__':
 
         #VERIFICATION OF DISJOINTNESS
         print("CHECK DISJOINTED")
+        print(DARP_instance_obj.drones_finished)
         Disjoint_results = CheckIfDisjointed(nx,ny, (DARP_instance_obj.DARP_steps[-1].obstacle_pos + DARP_instance_obj.DARP_steps[-1].full_covered_cells_encoded)  , len(DARP_instance_obj.start_positions) , DARP_instance_obj.DARP_steps[-1].current_position, DARP_instance_obj.DARP_steps[-1].drones_energy, DARP_instance_obj.DARP_steps[-1].pre_covered_cells, DARP_instance_obj.drones_finished  )
         print("END DISJOINTED VERIFICATION "+str(Disjoint_results[0]))
 
@@ -1103,7 +1120,7 @@ if __name__ == '__main__':
             drones_extra_energy = Disjoint_results[2]
             drones_old_energy = Disjoint_results[3]
             forced_disjoint = True
-            vis_real_time = True
+            #vis_real_time = True
         #END VERIFICATION
 
     
