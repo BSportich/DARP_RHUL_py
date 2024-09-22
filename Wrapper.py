@@ -2,6 +2,7 @@
 
 from multiRobotPathPlanner import MultiRobotPathPlanner, Energy_MRPP, BuildMSTs, generate_instance_initial_random, PositionTransformer
 from Visualization import visualize_paths
+from darp import AvailableCellsCount
 import numpy as np
 import random as random
 import Edges
@@ -293,22 +294,34 @@ class DARP_instance :
                         
                     else : 
                         self.drones_finished[r] = True
-                        new_pos = self.DARP_steps[-1].future_paths[r][-1][2:]
-                        performed_paths.append( self.DARP_steps[-1].future_paths[r][:] )
-                        temp_value_path = self.DARP_steps[-1].future_paths[r][:]
-                        r_offset = computeOffset( temp_value_path , self.cols )
-                        robots_offsets.append(r_offset)
+                        print(self.DARP_steps[-1].future_paths[r])  
+                        if self.DARP_steps[-1].future_paths[r] != [] : 
+                            new_pos = self.DARP_steps[-1].future_paths[r][-1][2:]
+                            performed_paths.append( self.DARP_steps[-1].future_paths[r][:] )
+                            temp_value_path = self.DARP_steps[-1].future_paths[r][:]
+                            r_offset = computeOffset( temp_value_path , self.cols )
+                            robots_offsets.append(r_offset)
 
-                        #Transform coordinates
-                        x, y = new_pos
-                        drones_pos_precise.append( (x,y) )
-                        #print("NEW POS "+str(new_pos))
-                        x , y = transformCoordinates(x,y)
-                        #print("NEW POS "+str( (x,y) ))
-                        new_pos_one = x * self.cols + y
-                        #print("NEW POS "+str(new_pos_one))
+                            #Transform coordinates
+                            x, y = new_pos
+                            drones_pos_precise.append( (x,y) )
+                            #print("NEW POS "+str(new_pos))
+                            x , y = transformCoordinates(x,y)
+                            #print("NEW POS "+str( (x,y) ))
+                            new_pos_one = x * self.cols + y
+                            #print("NEW POS "+str(new_pos_one))
 
-                        drones_pos.append( new_pos_one )
+                            drones_pos.append( new_pos_one )
+                        else : 
+                            drones_pos.append( self.DARP_steps[-1].current_position[r] )
+
+                            #new_pos = self.DARP_steps[-1].future_paths[r][0][:2]
+                            robots_offsets = self.DARP_steps[-2].robots_offsets 
+                            performed_paths.append( [])
+
+                            x, y = self.DARP_steps[-1].current_position_precise[r]
+                            drones_pos_precise.append( (x,y) )
+
 
 
             
@@ -911,6 +924,7 @@ def CheckIfDisjointed(rows, cols, obstacles_positions, dronesNo, initial_positio
     drones_zones_label = []
     drones_zones_tab = []
     zones_nb_cells = {}
+    zones_nb_cells_2 = {}
     zones_energy_available = {}
     zones_boolean = {}
     drones_energy_extra = [0] * dronesNo
@@ -938,7 +952,7 @@ def CheckIfDisjointed(rows, cols, obstacles_positions, dronesNo, initial_positio
         if isfinished[drone] == True : 
             print("Robot not considered : coverage finished")
             drones_zones_tab.append( label_drone )
-            zones_nb_cells[ label_drone ] = 0
+            #zones_nb_cells[ label_drone ] = 0
             if label_drone not in drones_zones_label : 
                 drones_zones_label.append( label_drone )
         else : 
@@ -947,10 +961,13 @@ def CheckIfDisjointed(rows, cols, obstacles_positions, dronesNo, initial_positio
                 drones_zones_label.append( label_drone )
             number_cells = np.count_nonzero(label_drone == labels_im)
             print("number cells is "+str(number_cells))
-            zones_nb_cells[ label_drone ] = number_cells
+            zones_nb_cells[ label_drone ] = AvailableCellsCount(label_drone, rows, cols, labels_im, pre_covered_cells) 
+            zones_nb_cells_2[ label_drone ] = number_cells
             print(number_cells)
 
     print(zones_nb_cells)
+    print(zones_nb_cells_2)
+    print(energy_pre_covered_cells)
     print("ZONES HERE ")
     print(labels_im)
 
@@ -979,7 +996,8 @@ def CheckIfDisjointed(rows, cols, obstacles_positions, dronesNo, initial_positio
     print(drones_zones_label)
     print(len(drones_zones_label))
     #if unconnected zones have unbalanced energy
-    if zone_i !=0 and zone_i!= (len(drones_zones_label)) : 
+    #if zone_i !=0 and zone_i!= (len(drones_zones_label)) : 
+    if zone_i !=0 : 
         for zone in zones_nb_cells.keys() : 
             if zones_boolean[zone] == True : 
 
@@ -1049,9 +1067,9 @@ def CheckIfDisjointed2() :
 
 
 if __name__ == '__main__':
-    nx, ny, dronesNo, initial_positions, obs_pos, drones_energy = generate_instance_initial_random(25,25,5)
+    #nx, ny, dronesNo, initial_positions, obs_pos, drones_energy = generate_instance_initial_random(25,25,5)
     #nx, ny, dronesNo, initial_positions, obs_pos, drones_energy = generate_instance_initial_random(25,25,3)
-    #nx, ny, dronesNo, initial_positions, obs_pos, drones_energy = generate_instance_initial_random(15,15,3)
+    nx, ny, dronesNo, initial_positions, obs_pos, drones_energy = generate_instance_initial_random(15,15,3)
 
 
 
@@ -1076,9 +1094,9 @@ if __name__ == '__main__':
     # DARP_instance_obj.drones_generation_factors = [80,80,80,80,80 ]
     # DARP_instance_obj.drones_generation_factors = [60,60,60,60,60 ]
     # DARP_instance_obj.drones_generation_factors = [100,100,100,100,100 ]
-    DARP_instance_obj.drones_generation_factors = [120] * dronesNo #bon parametre pour 3 
+    #DARP_instance_obj.drones_generation_factors = [120] * dronesNo #bon parametre pour 3 
     #DARP_instance_obj.drones_generation_factors = [80] * dronesNo 
-    #DARP_instance_obj.drones_generation_factors = [50] * dronesNo #EXPERIENCE
+    DARP_instance_obj.drones_generation_factors = [50] * dronesNo #EXPERIENCE
     #DARP_instance_obj.drones_generation_factors = [150] * dronesNo
 
     # DARP_instance_obj.drones_energy_rates = [1.50,1.50,0.50]
@@ -1122,7 +1140,8 @@ if __name__ == '__main__':
             forced_disjoint = True
             #vis_real_time = True
         #END VERIFICATION
-
+        if len(DARP_instance_obj.DARP_steps) > 5 : 
+            vis_real_time = True
     
         DARP_instance_obj.finalize_step(vis_real_time=vis_real_time, forced_disjoint = forced_disjoint)
         if Disjoint_results[0] == True : 
@@ -1144,3 +1163,4 @@ if __name__ == '__main__':
 
 #path = [(22, 24, 23, 24), (23, 24, 24, 24), (24, 24, 25, 24), (25, 24, 26, 24), (26, 24, 27, 24), (27, 24, 28, 24), (28, 24, 29, 24), (29, 24, 30, 24), (30, 24, 31, 24), (31, 24, 32, 24), (32, 24, 33, 24), (33, 24, 34, 24), (34, 24, 35, 24), (35, 24, 36, 24), (36, 24, 37, 24), (37, 24, 38, 24), (38, 24, 39, 24), (39, 24, 40, 24), (40, 24, 41, 24), (41, 24, 42, 24), (42, 24, 43, 24), (43, 24, 44, 24), (44, 24, 45, 24), (45, 24, 46, 24), (46, 24, 47, 24), (47, 24, 48, 24), (48, 24, 49, 24), (49, 24, 50, 24), (50, 24, 51, 24), (51, 24, 52, 24), (52, 24, 53, 24), (53, 24, 54, 24), (54, 24, 55, 24), (55, 24, 56, 24), (56, 24, 57, 24), (57, 24, 58, 24), (58, 24, 59, 24), (59, 24, 60, 24), (60, 24, 61, 24), (61, 24, 62, 24), (62, 24, 62, 23), (62, 23, 61, 23), (61, 23, 60, 23), (60, 23, 60, 22), (60, 22, 61, 22), (61, 22, 62, 22), (62, 22, 62, 21), (62, 21, 61, 21), (61, 21, 60, 21), (60, 21, 60, 20), (60, 20, 61, 20), (61, 20, 62, 20), (62, 20, 62, 19), (62, 19, 61, 19), (61, 19, 60, 19), (60, 19, 60, 18), (60, 18, 61, 18), (61, 18, 62, 18), (62, 18, 62, 17), (62, 17, 61, 17), (61, 17, 60, 17), (60, 17, 60, 16), (60, 16, 61, 16), (61, 16, 62, 16), (62, 16, 62, 15), (62, 15, 61, 15), (61, 15, 60, 15), (60, 15, 60, 14), (60, 14, 61, 14), (61, 14, 62, 14), (62, 14, 62, 13), (62, 13, 61, 13), (61, 13, 60, 13), (60, 13, 60, 12), (60, 12, 61, 12), (61, 12, 62, 12), (62, 12, 62, 11), (62, 11, 61, 11), (61, 11, 60, 11), (60, 11, 60, 10), (60, 10, 61, 10), (61, 10, 62, 10), (62, 10, 62, 9), (62, 9, 61, 9), (61, 9, 60, 9), (60, 9, 60, 8), (60, 8, 61, 8), (61, 8, 62, 8), (62, 8, 62, 7), (62, 7, 62, 6), (62, 6, 63, 6), (63, 6, 63, 7), (63, 7, 63, 8), (63, 8, 63, 9), (63, 9, 63, 10), (63, 10, 63, 11), (63, 11, 63, 12), (63, 12, 63, 13), (63, 13, 63, 14), (63, 14, 63, 15), (63, 15, 63, 16), (63, 16, 63, 17), (63, 17, 63, 18), (63, 18, 63, 19), (63, 19, 63, 20), (63, 20, 63, 21), (63, 21, 63, 22), (63, 22, 63, 23), (63, 23, 63, 24), (63, 24, 63, 25), (63, 25, 63, 26), (63, 26, 63, 27), (63, 27, 63, 28), (63, 28, 63, 29), (63, 29, 63, 30), (63, 30, 63, 31), (63, 31, 62, 31), (62, 31, 61, 31), (61, 31, 60, 31), (60, 31, 60, 30), (60, 30, 61, 30), (61, 30, 62, 30), (62, 30, 62, 29), (62, 29, 61, 29), (61, 29, 60, 29), (60, 29, 60, 28), (60, 28, 61, 28), (61, 28, 62, 28), (62, 28, 62, 27), (62, 27, 61, 27), (61, 27, 60, 27), (60, 27, 60, 26), (60, 26, 61, 26), (61, 26, 62, 26), (62, 26, 62, 25), (62, 25, 61, 25), (61, 25, 60, 25), (60, 25, 59, 25), (59, 25, 58, 25), (58, 25, 57, 25), (57, 25, 56, 25), (56, 25, 55, 25), (55, 25, 54, 25), (54, 25, 53, 25), (53, 25, 52, 25), (52, 25, 51, 25), (51, 25, 50, 25), (50, 25, 49, 25), (49, 25, 48, 25), (48, 25, 47, 25), (47, 25, 46, 25), (46, 25, 45, 25), (45, 25, 44, 25), (44, 25, 43, 25), (43, 25, 42, 25), (42, 25, 41, 25), (41, 25, 40, 25), (40, 25, 39, 25), (39, 25, 38, 25), (38, 25, 37, 25), (37, 25, 36, 25), (36, 25, 35, 25), (35, 25, 34, 25), (34, 25, 33, 25), (33, 25, 32, 25), (32, 25, 31, 25), (31, 25, 30, 25), (30, 25, 29, 25), (29, 25, 28, 25), (28, 25, 27, 25), (27, 25, 26, 25), (26, 25, 25, 25), (25, 25, 24, 25), (24, 25, 23, 25), (23, 25, 22, 25), (22, 25, 22, 24)]
 #[(22, 24), (62, 23), (61, 23), (60, 22), (61, 22), (62, 21), (61, 21), (60, 20), (61, 20), (62, 19), (61, 19), (60, 18), (61, 18), (62, 17), (61, 17), (60, 16), (61, 16), (62, 15), (61, 15), (60, 14), (61, 14), (62, 13), (61, 13), (60, 12), (61, 12), (62, 11), (61, 11), (60, 10), (61, 10), (62, 9), (61, 9), (60, 8), (61, 8), (62, 7), (63, 6), (63, 7), (62, 31), (60, 30), (61, 30), (62, 29), (61, 29), (60, 28), (61, 28), (62, 27), (61, 27), (60, 26), (61, 26), (62, 25), (61, 25), (22, 24)]
+

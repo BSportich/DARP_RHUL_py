@@ -267,6 +267,20 @@ class DARP:
         
         self.A = np.zeros((self.rows, self.cols))
         self.GridEnv = self.defineGridEnv()
+
+        if self.forced == True :
+            temp_count = 0 
+            label_drone_set = []
+            for r in range(self.droneNo) : 
+                label_drone = self.connectivity_map[ self.initial_positions[r][0] ][ self.initial_positions[r][1] ]
+                if not(label_drone in label_drone_set) : 
+                    temp_count = temp_count + AvailableCellsCount(label_drone, nx, ny, self.connectivity_map, self.pre_covered_cells)
+                    label_drone_set.append(label_drone)
+            print(self.connectivity_map)
+            print("OLD EFFECTIVE SIZE "+str(self.EffectiveSize))
+            print("CORRECTED EFFECTIVE SIZE "+str(temp_count))
+            self.EffectiveSize = temp_count - self.droneNo
+            input()
    
         self.connectivity = np.zeros((self.droneNo, self.rows, self.cols), dtype=np.uint8)
         self.BinaryRobotRegions = np.zeros((self.droneNo, self.rows, self.cols), dtype=bool)
@@ -370,6 +384,7 @@ class DARP:
                 print("Disconnected region mode : FORCED ")
                 self.printok = True
                 self.debug_prints = True
+
                 input()
 
         self.connectivity_map = labels_im
@@ -384,7 +399,7 @@ class DARP:
                     #if cell[0] != self.initial_positions[r][0] and cell[1] != self.initial_positions[r][1]: #INSTABLE ?
                     GridEnv[ cell[0] ][ cell[1] ] = -(r+1) * 100
                     if self.isFinished[r] == True : 
-                        GridEnv[ cell[0] ][ cell[1] ] = -1
+                        GridEnv[ cell[0] ][ cell[1] ] = -2
 
             # print("PRE COVERED CELLS "+str(GridEnv))
 
@@ -889,7 +904,8 @@ class DARP:
         if(self.printok) : print(np.sum(opt_ass))
 
         #OMG ABSOLUTE TEST
-        if sum(opt_ass) > 0.99 :
+        #if sum(opt_ass) > 0.99 :
+        if sum(opt_ass) > ( 1 - ((self.droneNo)/self.EffectiveSize) ) : 
             self.IsNormalized = True
         else : 
             self.IsNormalized = False
@@ -901,11 +917,16 @@ class DARP:
     def ComputeThresholdsRobots(self) :
         self.robots_thresholds = [] 
         print("IS NORMALIZED ? ", self.IsNormalized)
+        temp_available_share = 1 - sum(self.opt_ass)
+        active_robots = len(self.isFinished) - sum(self.isFinished)
+        print("EXCESS SHARE IS "+str(temp_available_share))
+        print(" ACTIVE ROBOTS ARE "+str(active_robots))
+        print(self.isFinished)
+
         for r in range(self.droneNo) : 
             if self.IsNormalized : 
                 LowerThreshold = ( (self.opt_ass[r]*self.EffectiveSize) - self.termThr ) / self.EffectiveSize
                 HigherThreshold = ( (self.opt_ass[r] * self.EffectiveSize) + self.termThr) / self.EffectiveSize
-
     
                 if (self.opt_ass[r] * self.EffectiveSize ) < self.termThr or ( (self.opt_ass[r] * self.EffectiveSize)+ self.termThr) > self.EffectiveSize : 
                     print("ERROR : TERMTHR EXCEEDED EXPECTED VALUES ")
@@ -935,9 +956,16 @@ class DARP:
                 #elif self.opt_threshold == "B" :
                 #    HigherThreshold = (self.EffectiveSize - self.termThr) / self.EffectiveSize
                 #elif self.opt_threshold == "C" : 
-                temp_value = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - (len(self.pre_covered_cells[r]) *0.5 ) ) / ( (sum(self.drones_energy) / self.cell_coverage_energy_cost) -  ( sum(len(x) for x in self.pre_covered_cells) *0.5 )) 
-                temp_value = ( (self.opt_ass[r] * self.EffectiveSize) + 2* self.termThr) / self.EffectiveSize
-                HigherThreshold = temp_value
+
+                #OLD CORRECT ?
+                # temp_value = ( ( self.drones_energy[r] / self.cell_coverage_energy_cost ) - (len(self.pre_covered_cells[r]) *0.5 ) ) / ( (sum(self.drones_energy) / self.cell_coverage_energy_cost) -  ( sum(len(x) for x in self.pre_covered_cells) *0.5 )) 
+                # temp_value = ( (self.opt_ass[r] * self.EffectiveSize) + 2* self.termThr) / self.EffectiveSize
+                # HigherThreshold = temp_value
+                if self.isFinished[r] == True :
+                    HigherThreshold = 1
+                else : 
+                    HigherThreshold = LowerThreshold + (temp_available_share / active_robots)
+
 
                 if LowerThreshold == 0 :
                     HigherThreshold = 0
@@ -950,15 +978,18 @@ class DARP:
             if self.isFinished[r] == True :
                 LowerThreshold = 0
                 HigherThreshold = 1
+
+            
             
             print("THRESHOLDS FOR ROBOT "+str(r)+" "+str(LowerThreshold)+" "+str(HigherThreshold))
             self.robots_thresholds .append( (LowerThreshold, HigherThreshold))
 
+              
 
     def CellsRejectionProcess(self): 
 
         # print("REJECTION ")
-        # print(self.BinaryRobotMainRegion)
+        print(self.BinaryRobotMainRegion)
         # print(self.valuation_grid)
         # input()
         print("ENERGY IS "+str(self.drones_energy))
@@ -992,3 +1023,22 @@ class DARP:
         return
 
 
+def AvailableCellsCount(label, rows, cols, ValuedMap, precovered_cells) : 
+    print("label is "+str(label))
+    count = 0 
+    ignored_cells = 0 
+    for i in range(rows) : 
+        for j in range(cols) : 
+            if ValuedMap[i][j] == label : 
+                temp_value = 1 
+                for cells_set in precovered_cells : 
+                    for cell in cells_set :
+                        if i == cell[0] and j == cell[1] : 
+                            temp_value = 0
+                            ignored_cells = ignored_cells +1
+                
+                count = count + temp_value
+    
+    print("count is "+str(count))
+    print("ignored cells "+str(ignored_cells))
+    return count
